@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package> 
+  <metadata> 
+    <id>PDFLittleSigner</id>
+    <version>1.0.0</version>
+    <authors>Arkadiusz Beer</authors>
+    <description>PDF Little Signer is a .NET3.5 library for self signing PDF document.  It uses iTextSharp.</description>
+    <language>en-US</language>
+    <licenseUrl>http://pdflttlesigner.codeplex.com/license/</licenseUrl>
+    <projectUrl>http://pdflttlesigner.codeplex.com/</projectUrl>
+    <tags>pdf sign itextsharp</tags>
+    <iconUrl>PdfLittleSignerSmall.png</iconUrl>
+  </metadata>
+  
+  <files>
+  <file src="bin\Debug\*.dll" target="lib" />
+  <file src="bin\Debug\*.pdb" target="lib" /> 
+</files>
+</package>
