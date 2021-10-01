@@ -8,9 +8,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("PdfLittleSigner")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("Comarch")]
+[assembly: AssemblyCompany("arek")]
 [assembly: AssemblyProduct("PdfLittleSigner")]
-[assembly: AssemblyCopyright("Copyright © Comarch 2011")]
+[assembly: AssemblyCopyright("")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
