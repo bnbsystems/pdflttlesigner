@@ -7,11 +7,14 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.Pkcs;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Permissions;
-using iTextSharp.text.pdf;
+using iText.Kernel.Pdf;
+using iText.Signatures;
+using PdfLttleSigner;
 
-namespace PdfLttleSigner
+
+namespace PdfLittleSigner
 {
-    public class PdpSigner
+    public class PdpSigner : IPdpSigner
     {
         private BaseFont bFontTimesRoman = BaseFont.CreateFont(BaseFont.TIMES_ROMAN, BaseFont.CP1252, BaseFont.NOT_EMBEDDED);
 
@@ -24,14 +27,14 @@ namespace PdfLttleSigner
 
         public StoreName StoredName
         {
-            get { return _storedName; }
-            set { _storedName = value; }
+            get => _storedName;
+            set => _storedName = value;
         }
 
         public StoreLocation StoredLocation
         {
-            get { return _storedLocation; }
-            set { _storedLocation = value; }
+            get => _storedLocation;
+            set => _storedLocation = value;
         }
 
         public Size ImageSize = new Size(248, 99);
@@ -65,19 +68,19 @@ namespace PdfLttleSigner
         public PdpSigner(string iCertificatesName, string input, string output, MetaData md)
         {
             CertificatesName = iCertificatesName.ToUpper();
-            this.settingMetadata = md;
+            settingMetadata = md;
 
-            this.inputPdfFileString = input;
-            this.outputPdfFileString = output;
+            inputPdfFileString = input;
+            outputPdfFileString = output;
         }
 
         public PdpSigner(string iCertificatesName, Stream input, Stream output, MetaData md)
         {
             CertificatesName = iCertificatesName.ToUpper();
-            this.settingMetadata = md;
+            settingMetadata = md;
 
-            this.inputPdfStream = input;
-            this.outputPdfStream = output;
+            inputPdfStream = input;
+            outputPdfStream = output;
         }
 
         #endregion Constructors
@@ -134,10 +137,12 @@ namespace PdfLttleSigner
             {
                 reader = new PdfReader(this.inputPdfFileString);
             }
-            if (outputPdfStream == null && string.IsNullOrEmpty(outputPdfFileString) == false)
+
+            if (outputPdfStream == Stream.Null && string.IsNullOrEmpty(outputPdfFileString) == false)
             {
                 outputPdfStream = new FileStream(this.outputPdfFileString, FileMode.OpenOrCreate, FileAccess.Write);
             }
+
             if (reader != null && outputPdfStream != null)
             {
                 #region Standard Signing

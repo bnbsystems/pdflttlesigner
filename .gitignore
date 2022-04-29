@@ -1,0 +1,12 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/PdfLittleSigner/UpgradeLog.htm
+/PdfLittleSigner/.vs/PdfLittleSigner
+/PdfLittleSigner/PdfLittleSigner/obj
+/PdfLittleSigner/.upgrade-assistant
+/PdfLittleSigner/AnalysisReport.sarif
+/PdfLittleSigner/upgrade-assistant.clef
+/PdfLittleSigner/Backup
+/PdfLittleSigner/PdfLittleSigner.suo
