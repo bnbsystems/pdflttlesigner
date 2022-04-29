@@ -101,7 +101,6 @@ namespace PdfLittleSigner
                 .SetReason(iSignReason)
                 .SetContact(iSignContact)
                 .SetRenderingMode(PdfSignatureAppearance.RenderingMode.DESCRIPTION);
-
             if (visible)
             {
                 signatureAppearance.SetPageRect(new iText.Kernel.Geom.Rectangle(ImageLocation.Width,
@@ -118,13 +117,14 @@ namespace PdfLittleSigner
 
             PdfSignature dic = new PdfSignature(PdfName.Adobe_PPKMS, PdfName.Adbe_pkcs7_sha1);
             dic.SetDate(new PdfDate(pdfSigner.GetSignDate()));
-
             if (signatureAppearance.GetReason() != null)
                 dic.SetReason(signatureAppearance.GetReason());
             if (signatureAppearance.GetLocation() != null)
                 dic.SetLocation(signatureAppearance.GetLocation());
 
+            string hashAlgorithm = DigestAlgorithms.SHA256;
 
+            pdfSigner.SignDetached(pks, chain, null, null, null, 0, PdfSigner.CryptoStandard.CMS);
             return true;
         }
 
