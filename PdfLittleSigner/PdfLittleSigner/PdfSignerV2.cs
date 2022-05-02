@@ -5,9 +5,12 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Permissions;
+using System.Threading.Tasks;
 using iText.IO.Image;
 using iText.Kernel.Pdf;
 using iText.Signatures;
+using Microsoft.AspNetCore.Http;
+using PdfLittleSigner.Extensions;
 using PdfLttleSigner;
 
 namespace PdfLittleSigner
@@ -49,27 +52,20 @@ namespace PdfLittleSigner
 
         #endregion
 
-        public bool Sign(string iSignReason, string iSignContact, string iSignLocation, bool visible,
-            string iImageString)
+        public async Task<bool> Sign(string iSignReason,
+            string iSignContact,
+            string iSignLocation,
+            bool visible,
+            string iImageString,
+            IFormFile stampFile,
+            X509Certificate2 certificate,
+            byte[] fileToSign)
         {
-            string vCertificatesPath = "CN=" + CertificatesName;
-
             #region Geting Certs
 
-            X509Store store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
-
-            StorePermission sp = new StorePermission(PermissionState.Unrestricted);
-            sp.Flags = StorePermissionFlags.OpenStore;
-            sp.Assert();
-
-
-            var cert = GetX509Certificate2(store, vCertificatesPath);
-            if (cert == null)
-            {
-                throw new CryptographicException("Certificate is NULL. Certificate can not be found");
-            }
-
-            var chain = GetChainBouncyCastle(cert);
+            var chain = certificate != null ? 
+                GetChainBouncyCastle(certificate) 
+                : throw new CryptographicException("Certificate is NULL. Certificate can not be found");
 
             #endregion Geting Certs
 
@@ -95,6 +91,7 @@ namespace PdfLittleSigner
             PdfSigner pdfSigner = new PdfSigner(pdfReader, _outputPdfStream, stampingProperties);
 
             pdfSigner.SetSignDate(SignDate);
+            pdfSigner.SetCertificationLevel(PdfSigner.CERTIFIED_NO_CHANGES_ALLOWED);
 
             var signatureAppearance = pdfSigner.GetSignatureAppearance();
             signatureAppearance
@@ -106,9 +103,10 @@ namespace PdfLittleSigner
                 signatureAppearance.SetPageRect(new iText.Kernel.Geom.Rectangle(ImageLocation.Width,
                     ImageLocation.Height, ImageSize.Width, ImageSize.Height));
 
-                if (File.Exists(iImageString))
+                if (stampFile != null)
                 {
-                    ImageData imageData = ImageDataFactory.Create(iImageString);
+                    var stampBytes = await stampFile.ToByteArrayAsync();
+                    ImageData imageData = ImageDataFactory.Create(stampBytes);
                     signatureAppearance.SetImage(imageData);
                 }
             }
@@ -123,6 +121,7 @@ namespace PdfLittleSigner
                 dic.SetLocation(signatureAppearance.GetLocation());
 
             string hashAlgorithm = DigestAlgorithms.SHA256;
+            PdfPKCS7 pkcs7Signature = new PdfPKCS7(null, chain, hashAlgorithm, false);
 
             pdfSigner.SignDetached(pks, chain, null, null, null, 0, PdfSigner.CryptoStandard.CMS);
             return true;
