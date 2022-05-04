@@ -4,14 +4,12 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Security.Permissions;
 using System.Threading.Tasks;
 using iText.IO.Image;
 using iText.Kernel.Pdf;
 using iText.Signatures;
 using Microsoft.AspNetCore.Http;
 using PdfLittleSigner.Extensions;
-using PdfLttleSigner;
 
 namespace PdfLittleSigner
 {
@@ -56,7 +54,6 @@ namespace PdfLittleSigner
             string iSignContact,
             string iSignLocation,
             bool visible,
-            string iImageString,
             IFormFile stampFile,
             X509Certificate2 certificate,
             byte[] fileToSign)
@@ -68,10 +65,8 @@ namespace PdfLittleSigner
                 : throw new CryptographicException("Certificate is NULL. Certificate can not be found");
 
             #endregion Geting Certs
-
-            PdfReader pdfReader = string.IsNullOrEmpty(_inputPdfFileString)
-                ? new PdfReader(_inputPdfStream)
-                : new PdfReader(_inputPdfFileString);
+            Stream inputPdfFile = new MemoryStream(fileToSign);
+            PdfReader pdfReader = new PdfReader(inputPdfFile);
 
 
             if (_outputPdfStream == null && !string.IsNullOrEmpty(_outputPdfFileString))
@@ -87,17 +82,17 @@ namespace PdfLittleSigner
             #region Standard Signing
 
             StampingProperties stampingProperties = new StampingProperties();
-
             PdfSigner pdfSigner = new PdfSigner(pdfReader, _outputPdfStream, stampingProperties);
 
-            pdfSigner.SetSignDate(SignDate);
+            pdfSigner.SetSignDate(DateTime.Now);
             pdfSigner.SetCertificationLevel(PdfSigner.CERTIFIED_NO_CHANGES_ALLOWED);
-
+            
             var signatureAppearance = pdfSigner.GetSignatureAppearance();
             signatureAppearance
                 .SetReason(iSignReason)
                 .SetContact(iSignContact)
                 .SetRenderingMode(PdfSignatureAppearance.RenderingMode.DESCRIPTION);
+            
             if (visible)
             {
                 signatureAppearance.SetPageRect(new iText.Kernel.Geom.Rectangle(ImageLocation.Width,
@@ -108,6 +103,16 @@ namespace PdfLittleSigner
                     var stampBytes = await stampFile.ToByteArrayAsync();
                     ImageData imageData = ImageDataFactory.Create(stampBytes);
                     signatureAppearance.SetImage(imageData);
+                    signatureAppearance.SetLayer2Text(" ");
+                }
+                else
+                {
+                    string field = certificate.SubjectName.Name;
+                    var signatureDate = DateTime.Now;
+                    var layer2Text = $"Operat podpisany cyfrowo \n" +
+                                     $"przez {field} \n" +
+                                     $"{signatureDate}";
+                    signatureAppearance.SetLayer2Text(layer2Text);
                 }
             }
 
@@ -119,23 +124,16 @@ namespace PdfLittleSigner
                 dic.SetReason(signatureAppearance.GetReason());
             if (signatureAppearance.GetLocation() != null)
                 dic.SetLocation(signatureAppearance.GetLocation());
+            if (signatureAppearance.GetContact() != null)
+                dic.SetContact(signatureAppearance.GetContact());
+            dic.SetSignatureCreator(_metaData.Author);
 
-            string hashAlgorithm = DigestAlgorithms.SHA256;
-            PdfPKCS7 pkcs7Signature = new PdfPKCS7(null, chain, hashAlgorithm, false);
-
-            pdfSigner.SignDetached(pks, chain, null, null, null, 0, PdfSigner.CryptoStandard.CMS);
+            var hashAlgorithm = DigestAlgorithms.SHA1;
+            IExternalSignature signature = new AsymmetricAlgorithmSignature(new RSACryptoServiceProvider(), hashAlgorithm);
+            
+            pdfSigner.SignDetached(signature, chain,null, null, null,0,PdfSigner.CryptoStandard.CMS);
+            
             return true;
-        }
-
-        private static X509Certificate2 GetX509Certificate2(X509Store store, string vCertificatesPath)
-        {
-            store.Open(OpenFlags.MaxAllowed);
-
-            X509Certificate2 cert =
-                store.Certificates.FirstOrDefault(x => x.Subject.ToUpper().Contains(vCertificatesPath));
-
-            store.Close();
-            return cert;
         }
 
         private static Org.BouncyCastle.X509.X509Certificate[] GetChainBouncyCastle(X509Certificate2 cert)

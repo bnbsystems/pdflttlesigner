@@ -1,9 +1,6 @@
-﻿using iText.Kernel.XMP;
-using System.Collections;
-using System.Collections.Generic;
-using System.IO;
+﻿using System.Collections.Generic;
 
-namespace PdfLttleSigner
+namespace PdfLittleSigner
 {
     public class MetaData
     {
@@ -46,20 +43,6 @@ namespace PdfLttleSigner
         public Dictionary<string, string> GetMetaData()
         {
             return _info;
-        }
-
-        public Hashtable GetMetaDataHashtable()
-        {
-            return new Hashtable(_info);
-        }
-
-        public byte[] GetStreamedMetaData()
-        {
-            MemoryStream os = new System.IO.MemoryStream();
-            var hashTable = new Hashtable(_info);
-            XmpWriter xmp = new XmpWriter(os, hashTable);
-            xmp.Close();
-            return os.ToArray();
         }
     }
 }

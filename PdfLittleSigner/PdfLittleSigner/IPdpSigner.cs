@@ -17,7 +17,6 @@ public interface IPdpSigner
         string iSignContact,
         string iSignLocation,
         bool visible,
-        string iImageString,
         IFormFile stampFile,
         X509Certificate2 certificate,
         byte[] fileToSign);
