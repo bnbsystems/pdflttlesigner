@@ -10,7 +10,6 @@ using iText.Signatures;
 using Microsoft.AspNetCore.Http;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Math;
-using PdfLittleSigner.Extensions;
 
 namespace PdfLittleSigner
 {
@@ -55,13 +54,13 @@ namespace PdfLittleSigner
             X509Certificate2 certificate,
             byte[] fileToSign)
         {
-            #region Geting Certs
+
 
             var chain = certificate != null ? 
-                GetChainBouncyCastle(certificate) 
+                GetChain(certificate) 
                 : throw new CryptographicException("Certificate is NULL. Certificate can not be found");
 
-            #endregion Geting Certs
+
             Stream inputPdfFile = new MemoryStream(fileToSign);
             PdfReader pdfReader = new PdfReader(inputPdfFile);
 
@@ -76,57 +75,20 @@ namespace PdfLittleSigner
                 return false;
             }
 
-            #region Standard Signing
 
-            StampingProperties stampingProperties = new StampingProperties();
-            PdfSigner pdfSigner = new PdfSigner(pdfReader, _outputPdfStream, stampingProperties);
 
-            pdfSigner.SetSignDate(DateTime.Now);
-            pdfSigner.SetCertificationLevel(PdfSigner.CERTIFIED_NO_CHANGES_ALLOWED);
-            
-            var signatureAppearance = pdfSigner.GetSignatureAppearance();
-            signatureAppearance
-                .SetReason(iSignReason)
-                .SetContact(iSignContact)
-                .SetLocation(iSignLocation);
-                
-            
-            if (visible)
-            {
-                signatureAppearance.SetPageRect(new iText.Kernel.Geom.Rectangle(ImageLocation.Width,
-                    ImageLocation.Height, ImageSize.Width, ImageSize.Height));
+            var pdfSigner = GetPdfSigner(pdfReader);
+            await ConfigureSignatureAppearance(iSignReason, iSignContact, iSignLocation, visible, stampFile, certificate, pdfSigner);
+            var signature = CreateExternalSignature(certificate);
 
-                if (stampFile != null)
-                {
-                    signatureAppearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.GRAPHIC);
-                    var stampBytes = await stampFile.ToByteArrayAsync();
-                    ImageData imageData = ImageDataFactory.Create(stampBytes);
-                    signatureAppearance.SetImage(imageData);
-                    signatureAppearance.SetLayer2Text(" ");
-                }
-                else
-                {
-                   signatureAppearance .SetRenderingMode(PdfSignatureAppearance.RenderingMode.DESCRIPTION);
-                    string field = certificate.GetNameInfo(X509NameType.SimpleName, false);
-                    var signatureDate = DateTime.Now;
-                    var layer2Text = $"Operat podpisany cyfrowo \n" +
-                                     $"przez {field} \n" +
-                                     $"{signatureDate}";
-                    signatureAppearance.SetLayer2Text(layer2Text);
-                }
-            }
+            pdfSigner.SignDetached(signature, chain, null, null, null, 0, PdfSigner.CryptoStandard.CMS);
+            pdfReader.Close();
 
-            #endregion
+            return true;
+        }
 
-            PdfSignature dic = new PdfSignature(PdfName.Adobe_PPKMS, PdfName.Adbe_pkcs7_sha1);
-            dic.SetDate(new PdfDate(pdfSigner.GetSignDate()));
-            if (signatureAppearance.GetReason() != null)
-                dic.SetReason(signatureAppearance.GetReason());
-            if (signatureAppearance.GetLocation() != null)
-                dic.SetLocation(signatureAppearance.GetLocation());
-            if (signatureAppearance.GetContact() != null)
-                dic.SetContact(signatureAppearance.GetContact());
-       
+        private IExternalSignature CreateExternalSignature(X509Certificate2 certificate)
+        {
             var hashAlgorithm = DigestAlgorithms.SHA1;
             var rsa = certificate.GetRSAPrivateKey();
             var parameters = rsa.ExportParameters(true);
@@ -149,18 +111,70 @@ namespace PdfLittleSigner
                 dq,
                 inverseQ);
             IExternalSignature signature = new PrivateKeySignature(privateKey, hashAlgorithm);
-            pdfSigner.SignDetached(signature, chain, null, null, null, 0, PdfSigner.CryptoStandard.CMS);
-            pdfReader.Close();
-            return true;
+            return signature;
         }
 
-        private static Org.BouncyCastle.X509.X509Certificate[] GetChainBouncyCastle(X509Certificate2 cert)
+        private async Task ConfigureSignatureAppearance(string iSignReason, string iSignContact, string iSignLocation,
+            bool visible, IFormFile stampFile, X509Certificate2 certificate, PdfSigner pdfSigner)
+        {
+            var signatureAppearance = pdfSigner.GetSignatureAppearance();
+            signatureAppearance
+                .SetReason(iSignReason)
+                .SetContact(iSignContact)
+                .SetLocation(iSignLocation);
+
+
+            if (visible)
+            {
+                signatureAppearance.SetPageRect(new iText.Kernel.Geom.Rectangle(ImageLocation.Width,
+                    ImageLocation.Height, ImageSize.Width, ImageSize.Height));
+
+                if (stampFile != null)
+                {
+                    signatureAppearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.GRAPHIC);
+                    var stampBytes = await FormFileToByteArrayAsync(stampFile);
+                    ImageData imageData = ImageDataFactory.Create(stampBytes);
+                    signatureAppearance.SetImage(imageData);
+                    signatureAppearance.SetLayer2Text(" ");
+                }
+                else
+                {
+                    signatureAppearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.DESCRIPTION);
+                    string field = certificate.GetNameInfo(X509NameType.SimpleName, false);
+                    var signatureDate = DateTime.Now;
+                    var layer2Text = $"Operat podpisany cyfrowo \n" +
+                                     $"przez {field} \n" +
+                                     $"{signatureDate}";
+                    signatureAppearance.SetLayer2Text(layer2Text);
+                }
+            }
+        }
+
+        private PdfSigner GetPdfSigner(PdfReader pdfReader)
+        {
+            StampingProperties stampingProperties = new StampingProperties();
+            
+            PdfSigner pdfSigner = new PdfSigner(pdfReader, _outputPdfStream, stampingProperties);
+            pdfSigner.SetSignDate(DateTime.Now);
+            pdfSigner.SetCertificationLevel(PdfSigner.CERTIFIED_NO_CHANGES_ALLOWED);
+            
+            return pdfSigner;
+        }
+
+        private Org.BouncyCastle.X509.X509Certificate[] GetChain(X509Certificate2 cert)
         {
             Org.BouncyCastle.X509.X509CertificateParser cp = new Org.BouncyCastle.X509.X509CertificateParser();
             var certRawData = cert.RawData;
             var certificates = cp.ReadCertificate(certRawData);
             Org.BouncyCastle.X509.X509Certificate[] chain = {certificates};
             return chain;
+        }
+
+        private async Task<byte[]> FormFileToByteArrayAsync(IFormFile file)
+        {
+            using var stream = new MemoryStream();
+            await file.CopyToAsync(stream);
+            return stream.ToArray();
         }
     }
 }
