@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Drawing;
 using System.IO;
-using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
@@ -9,6 +8,8 @@ using iText.IO.Image;
 using iText.Kernel.Pdf;
 using iText.Signatures;
 using Microsoft.AspNetCore.Http;
+using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.Math;
 using PdfLittleSigner.Extensions;
 
 namespace PdfLittleSigner
@@ -22,9 +23,7 @@ namespace PdfLittleSigner
         public Stream OutputPdfStream { get; }
         public DateTime SignDate { get; set; }
 
-        private string _inputPdfFileString = "";
         private string _outputPdfFileString = "";
-        private Stream _inputPdfStream;
         private Stream _outputPdfStream;
         private MetaData _metaData;
         public Size ImageSize = new Size(248, 99);
@@ -36,7 +35,6 @@ namespace PdfLittleSigner
         {
             CertificatesName = iCertificatesName.ToUpper();
             _metaData = metaData;
-            _inputPdfFileString = input;
             _outputPdfFileString = output;
         }
 
@@ -44,7 +42,6 @@ namespace PdfLittleSigner
         {
             CertificatesName = iCertificatesName.ToUpper();
             _metaData = metaData;
-            _inputPdfStream = input;
             _outputPdfStream = output;
         }
 
@@ -91,7 +88,8 @@ namespace PdfLittleSigner
             signatureAppearance
                 .SetReason(iSignReason)
                 .SetContact(iSignContact)
-                .SetRenderingMode(PdfSignatureAppearance.RenderingMode.DESCRIPTION);
+                .SetLocation(iSignLocation);
+                
             
             if (visible)
             {
@@ -100,6 +98,7 @@ namespace PdfLittleSigner
 
                 if (stampFile != null)
                 {
+                    signatureAppearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.GRAPHIC);
                     var stampBytes = await stampFile.ToByteArrayAsync();
                     ImageData imageData = ImageDataFactory.Create(stampBytes);
                     signatureAppearance.SetImage(imageData);
@@ -107,7 +106,8 @@ namespace PdfLittleSigner
                 }
                 else
                 {
-                    string field = certificate.SubjectName.Name;
+                   signatureAppearance .SetRenderingMode(PdfSignatureAppearance.RenderingMode.DESCRIPTION);
+                    string field = certificate.GetNameInfo(X509NameType.SimpleName, false);
                     var signatureDate = DateTime.Now;
                     var layer2Text = $"Operat podpisany cyfrowo \n" +
                                      $"przez {field} \n" +
@@ -126,13 +126,31 @@ namespace PdfLittleSigner
                 dic.SetLocation(signatureAppearance.GetLocation());
             if (signatureAppearance.GetContact() != null)
                 dic.SetContact(signatureAppearance.GetContact());
-            dic.SetSignatureCreator(_metaData.Author);
-
+       
             var hashAlgorithm = DigestAlgorithms.SHA1;
-            IExternalSignature signature = new AsymmetricAlgorithmSignature(new RSACryptoServiceProvider(), hashAlgorithm);
-            
-            pdfSigner.SignDetached(signature, chain,null, null, null,0,PdfSigner.CryptoStandard.CMS);
-            
+            var rsa = certificate.GetRSAPrivateKey();
+            var parameters = rsa.ExportParameters(true);
+
+            var modulus = new BigInteger(1, parameters.Modulus);
+            var exponent = new BigInteger(1, parameters.Exponent);
+            var d = new BigInteger(1, parameters.D);
+            var p = new BigInteger(1, parameters.P);
+            var q = new BigInteger(1, parameters.Q);
+            var dp = new BigInteger(1, parameters.DP);
+            var dq = new BigInteger(1, parameters.DQ);
+            var inverseQ = new BigInteger(1, parameters.InverseQ);
+            var privateKey = new RsaPrivateCrtKeyParameters(
+                modulus,
+                exponent,
+                d,
+                p,
+                q,
+                dp,
+                dq,
+                inverseQ);
+            IExternalSignature signature = new PrivateKeySignature(privateKey, hashAlgorithm);
+            pdfSigner.SignDetached(signature, chain, null, null, null, 0, PdfSigner.CryptoStandard.CMS);
+            pdfReader.Close();
             return true;
         }
 
