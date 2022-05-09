@@ -1,14 +1,16 @@
 
-PDF Little Signer is a .NET3.5 library for self signing PDF document.  It uses iTextSharp.
+PDF Little Signer is a .NET6.0 library for self signing PDF document.  It uses iText7.
 
  
 
 It's very easy to use:
 ```csharp
-MetaData metadata = new MetaData();
-metadata.Author = "me";
-PdpSigner signer = new PdpSigner("CertyficateName", "file.pdf", "file_signed.pdf", metadata);
-bool signed = signer.Sign("reasonToSign","Contact", "PhysicalLocation", true, "image.jpg");
+var cert = new X509Certificate2("cert_file.pfx", "cert_password",X509KeyStorageFlags.Exportable);
+
+var pdfSigner = new PdpSigner("output.pdf");
+var visible = true;
+
+var result = await pdfSigner.Sign("ReasonToSign", "Contact", "PhysicalLocation", visible, stampImage, cert, fileToSign);
 ```
 and you will get a signed pdf.
 

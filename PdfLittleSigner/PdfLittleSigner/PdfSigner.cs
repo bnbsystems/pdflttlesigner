@@ -16,37 +16,32 @@ namespace PdfLittleSigner
 
     public class PdpSigner : IPdpSigner
     {
-        public string CertificatesName { get; }
-        public StoreName StoredName { get; set; }
-        public StoreLocation StoredLocation { get; set; }
-        public Stream OutputPdfStream { get; }
-        public DateTime SignDate { get; set; }
+        #region Properties
 
-        private string _outputPdfFileString = "";
+        private readonly string _outputPdfFileString = "";
         private Stream _outputPdfStream;
-        private MetaData _metaData;
-        public Size ImageSize = new Size(248, 99);
-        public Size ImageLocation = new Size(60, 100);
+        private readonly Size _imageSize = new(248, 99);
+        private readonly Size _imageLocation = new(60, 100);
+
+        #endregion
 
         #region Constructors
 
-        public PdpSigner(string iCertificatesName, string input, string output, MetaData metaData)
+        public PdpSigner(string output)
         {
-            CertificatesName = iCertificatesName.ToUpper();
-            _metaData = metaData;
+            
             _outputPdfFileString = output;
         }
 
-        public PdpSigner(string iCertificatesName, Stream input, Stream output, MetaData metaData)
+        public PdpSigner(Stream output)
         {
-            CertificatesName = iCertificatesName.ToUpper();
-            _metaData = metaData;
             _outputPdfStream = output;
         }
 
         #endregion
 
-        public async Task<bool> Sign(string iSignReason,
+        public async Task<bool> Sign(
+            string iSignReason,
             string iSignContact,
             string iSignLocation,
             bool visible,
@@ -81,7 +76,7 @@ namespace PdfLittleSigner
             await ConfigureSignatureAppearance(iSignReason, iSignContact, iSignLocation, visible, stampFile, certificate, pdfSigner);
             var signature = CreateExternalSignature(certificate);
 
-            pdfSigner.SignDetached(signature, chain, null, null, null, 0, iText.Signatures.PdfSigner.CryptoStandard.CMS);
+            pdfSigner.SignDetached(signature, chain, null, null, null, 0, PdfSigner.CryptoStandard.CMS);
             pdfReader.Close();
 
             return true;
@@ -115,7 +110,7 @@ namespace PdfLittleSigner
         }
 
         private async Task ConfigureSignatureAppearance(string iSignReason, string iSignContact, string iSignLocation,
-            bool visible, IFormFile stampFile, X509Certificate2 certificate, iText.Signatures.PdfSigner pdfSigner)
+            bool visible, IFormFile stampFile, X509Certificate2 certificate, PdfSigner pdfSigner)
         {
             var signatureAppearance = pdfSigner.GetSignatureAppearance();
             signatureAppearance
@@ -126,8 +121,8 @@ namespace PdfLittleSigner
 
             if (visible)
             {
-                signatureAppearance.SetPageRect(new iText.Kernel.Geom.Rectangle(ImageLocation.Width,
-                    ImageLocation.Height, ImageSize.Width, ImageSize.Height));
+                signatureAppearance.SetPageRect(new iText.Kernel.Geom.Rectangle(_imageLocation.Width,
+                    _imageLocation.Height, _imageSize.Width, _imageSize.Height));
 
                 if (stampFile != null)
                 {
@@ -150,13 +145,13 @@ namespace PdfLittleSigner
             }
         }
 
-        private iText.Signatures.PdfSigner GetPdfSigner(PdfReader pdfReader)
+        private PdfSigner GetPdfSigner(PdfReader pdfReader)
         {
             StampingProperties stampingProperties = new StampingProperties();
 
-            iText.Signatures.PdfSigner pdfSigner = new iText.Signatures.PdfSigner(pdfReader, _outputPdfStream, stampingProperties);
+            PdfSigner pdfSigner = new PdfSigner(pdfReader, _outputPdfStream, stampingProperties);
             pdfSigner.SetSignDate(DateTime.Now);
-            pdfSigner.SetCertificationLevel(iText.Signatures.PdfSigner.CERTIFIED_NO_CHANGES_ALLOWED);
+            pdfSigner.SetCertificationLevel(PdfSigner.CERTIFIED_NO_CHANGES_ALLOWED);
             
             return pdfSigner;
         }
