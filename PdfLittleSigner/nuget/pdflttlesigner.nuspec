@@ -6,7 +6,8 @@
     <authors>Arkadiusz Beer</authors>
     <description>PDF Little Signer is a PDF Signer based on iText7.</description>
     <language>en-US</language>
-    <licenseUrl>http://pdflttlesigner.codeplex.com/license/</licenseUrl>
+    <licenseUrl>https://github.com/bnbsystems/pdflttlesigner/blob/master/LICENSE</licenseUrl>
+
     <projectUrl>http://pdflttlesigner.codeplex.com/</projectUrl>
     <tags>pdf sign itextsharp</tags>
     <iconUrl>PdfLittleSignerSmall.png</iconUrl>
