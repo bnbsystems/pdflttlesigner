@@ -3,7 +3,8 @@
   <metadata> 
     <id>PDFLittleSigner</id>
     <version>1.0.1</version>
-    <authors>Arkadiusz Beer</authors>
+    <authors>BnB Systems</authors>
+
     <description>PDF Little Signer is a PDF Signer based on iText7.</description>
     <language>en-US</language>
     <licenseUrl>https://github.com/bnbsystems/pdflttlesigner/blob/master/LICENSE</licenseUrl>
