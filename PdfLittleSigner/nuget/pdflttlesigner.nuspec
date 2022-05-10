@@ -8,7 +8,8 @@
     <language>en-US</language>
     <licenseUrl>https://github.com/bnbsystems/pdflttlesigner/blob/master/LICENSE</licenseUrl>
 
-    <projectUrl>http://pdflttlesigner.codeplex.com/</projectUrl>
+    <projectUrl>https://github.com/bnbsystems/pdflttlesigner/</projectUrl>
+
     <tags>pdf sign itextsharp</tags>
     <iconUrl>PdfLittleSignerSmall.png</iconUrl>
   </metadata>
