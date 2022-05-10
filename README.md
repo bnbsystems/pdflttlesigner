@@ -10,8 +10,9 @@ var cert = new X509Certificate2("cert_file.pfx", "cert_password",X509KeyStorageF
 
 var pdfSigner = new PdpSigner("output.pdf");
 var result = await pdfSigner.Sign("ReasonToSign", "Contact", "PhysicalLocation", true, stampImage, cert, fileToSign);
-and you will get a signed pdf.
 ```
+and you will get a signed pdf.
+
 
 To generate certificate and generate .pfx file which contains both certificate andkey you can use OpenSSL tool. Install OpenSSL and then open command line or powershell and eneter following commands:
 ```
