@@ -56,29 +56,36 @@ namespace PdfLittleSigner
                 : throw new CryptographicException("Certificate is NULL. Certificate can not be found");
 
 
-            Stream inputPdfFile = new MemoryStream(fileToSign);
-            PdfReader pdfReader = new PdfReader(inputPdfFile);
-
+            await using Stream inputPdfFile = new MemoryStream(fileToSign);
+            PdfReader pdfReader = new(inputPdfFile);
 
             if (_outputPdfStream == null && !string.IsNullOrEmpty(_outputPdfFileString))
             {
                 _outputPdfStream = new FileStream(_outputPdfFileString, FileMode.OpenOrCreate, FileAccess.Write);
             }
-
+            
             if (_outputPdfStream == null)
             {
                 return false;
             }
 
-
-
-            var pdfSigner = GetPdfSigner(pdfReader);
-            await ConfigureSignatureAppearance(iSignReason, iSignContact, iSignLocation, visible, stampFile, certificate, pdfSigner);
-            var signature = CreateExternalSignature(certificate);
-
-            pdfSigner.SignDetached(signature, chain, null, null, null, 0, PdfSigner.CryptoStandard.CMS);
-            pdfReader.Close();
-
+            try
+            {
+                var pdfSigner = GetPdfSigner(pdfReader);
+                await ConfigureSignatureAppearance(iSignReason, iSignContact, iSignLocation, visible, stampFile,
+                    certificate, pdfSigner);
+                var signature = CreateExternalSignature(certificate);
+                pdfSigner.SignDetached(signature, chain, null, null, null, 0, PdfSigner.CryptoStandard.CMS);
+            }
+            catch (IOException ioe)
+            {
+                return false;
+            }
+            finally
+            {
+                await _outputPdfStream.DisposeAsync();
+            }
+            
             return true;
         }
 
@@ -86,6 +93,10 @@ namespace PdfLittleSigner
         {
             var hashAlgorithm = DigestAlgorithms.SHA1;
             var rsa = certificate.GetRSAPrivateKey();
+            if (rsa == null)
+            {
+                throw new CryptographicException("Certificate does not contain RSA private key");
+            }
             var parameters = rsa.ExportParameters(true);
 
             var modulus = new BigInteger(1, parameters.Modulus);
@@ -137,7 +148,7 @@ namespace PdfLittleSigner
                     signatureAppearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.DESCRIPTION);
                     string field = certificate.GetNameInfo(X509NameType.SimpleName, false);
                     var signatureDate = DateTime.Now;
-                    var layer2Text = $"Operat podpisany cyfrowo \n" +
+                    var layer2Text = "Operat podpisany cyfrowo \n" +
                                      $"przez {field} \n" +
                                      $"{signatureDate}";
                     signatureAppearance.SetLayer2Text(layer2Text);
@@ -149,7 +160,7 @@ namespace PdfLittleSigner
         {
             StampingProperties stampingProperties = new StampingProperties();
 
-            PdfSigner pdfSigner = new PdfSigner(pdfReader, _outputPdfStream, stampingProperties);
+            PdfSigner pdfSigner = new(pdfReader, _outputPdfStream, stampingProperties);
             pdfSigner.SetSignDate(DateTime.Now);
             pdfSigner.SetCertificationLevel(PdfSigner.CERTIFIED_NO_CHANGES_ALLOWED);
             
