@@ -32,7 +32,7 @@ namespace PdfLittleSignerSpecification
             var fileToSign = "Data/sample.pdf";
             byte [] fileToSignBytes = await File.ReadAllBytesAsync(fileToSign);
 
-            var pdfSigner = new PdpSigner(string.Empty);
+            var pdfSigner = new PdpSigner(string.Empty, null);
 
             // Act
             var result = await pdfSigner.Sign(signReason, contact, location, visible, stamp, cert, fileToSignBytes);
@@ -59,7 +59,7 @@ namespace PdfLittleSignerSpecification
             var fileToSign = "Data/sample.pdf";
             byte[] fileToSignBytes = await File.ReadAllBytesAsync(fileToSign);
 
-            var pdfSigner = new PdpSigner("output.pdf");
+            var pdfSigner = new PdpSigner("output.pdf", null);
 
             // Act
             var result = await pdfSigner.Sign(signReason, contact, location, visible, stamp, cert, fileToSignBytes);
@@ -87,7 +87,7 @@ namespace PdfLittleSignerSpecification
             byte[] fileToSignBytes = await File.ReadAllBytesAsync(fileToSign);
 
             Stream fs = null;
-            var pdfSigner = new PdpSigner(fs);
+            var pdfSigner = new PdpSigner(fs, null);
 
             // Act
             var result = await pdfSigner.Sign(signReason, contact, location, visible, stamp, cert, fileToSignBytes);
@@ -117,7 +117,7 @@ namespace PdfLittleSignerSpecification
             byte[] fileToSignBytes = await File.ReadAllBytesAsync(fileToSign);
 
             await using FileStream fs = new FileStream("output.pdf", FileMode.OpenOrCreate, FileAccess.Write);
-            var pdfSigner = new PdpSigner(fs);
+            var pdfSigner = new PdpSigner(fs, null);
 
             // Act
             var result = await pdfSigner.Sign(signReason, contact, location, visible, stampFileMock.Object, cert, fileToSignBytes);
@@ -136,7 +136,7 @@ namespace PdfLittleSignerSpecification
             var commonName = fixture.Create<string>();
             var cert = X509CertificateTestingUtils.GenerateX509Certificate2WithRsaKey(commonName);
 
-            PdpSigner pdfSigner = new("output.pdf");
+            PdpSigner pdfSigner = new("output.pdf", null);
             MethodInfo? methodInfo = typeof(PdpSigner).GetMethod("CreateExternalSignature", BindingFlags.NonPublic | BindingFlags.Instance);
             object[] parameters = { cert };
 
@@ -162,7 +162,7 @@ namespace PdfLittleSignerSpecification
             var commonName = fixture.Create<string>();
             var cert = X509CertificateTestingUtils.GenerateX509Certificate2WithEcdsaKey(commonName);
 
-            PdpSigner pdfSigner = new("output.pdf");
+            PdpSigner pdfSigner = new("output.pdf", null);
             MethodInfo? methodInfo = typeof(PdpSigner).GetMethod("CreateExternalSignature", BindingFlags.NonPublic | BindingFlags.Instance);
             object[] parameters = { cert };
 

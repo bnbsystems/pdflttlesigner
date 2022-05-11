@@ -25,22 +25,22 @@ namespace PdfLittleSigner
         private Stream _outputPdfStream;
         private readonly Size _imageSize = new(248, 99);
         private readonly Size _imageLocation = new(60, 100);
-        private readonly ILogger _logger;
+        private readonly ILogger<PdpSigner> _logger;
 
         #endregion
 
         #region Constructors
 
-        public PdpSigner(string output, [Optional] ILogger logger)
+        public PdpSigner(string output, ILogger<PdpSigner> logger)
         {
             _outputPdfFileString = output;
-            _logger = logger ?? NullLogger.Instance;
+            _logger = logger ?? new NullLogger<PdpSigner>();
         }
 
-        public PdpSigner(Stream output, [Optional] ILogger logger)
+        public PdpSigner(Stream output, ILogger<PdpSigner> logger)
         {
             _outputPdfStream = output;
-            _logger = logger ?? NullLogger.Instance; ;
+            _logger = logger ?? new NullLogger<PdpSigner>();
         }
 
         #endregion

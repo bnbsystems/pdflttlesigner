@@ -8,7 +8,7 @@ It's very easy to use:
 ```csharp
 var cert = new X509Certificate2("cert_file.pfx", "cert_password", X509KeyStorageFlags.Exportable);
 
-var pdfSigner = new PdpSigner("output.pdf");
+var pdfSigner = new PdpSigner("output.pdf", null);
 var result = await pdfSigner.Sign("ReasonToSign", "Contact", "PhysicalLocation", true, stampImage, cert, fileToSign);
 ```
 and you will get a signed pdf.
