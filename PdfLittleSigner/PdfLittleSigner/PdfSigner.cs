@@ -50,7 +50,6 @@ namespace PdfLittleSigner
             byte[] fileToSign)
         {
 
-
             var chain = certificate != null ? 
                 GetChain(certificate) 
                 : throw new CryptographicException("Certificate is NULL. Certificate can not be found");
@@ -140,7 +139,7 @@ namespace PdfLittleSigner
                     signatureAppearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.GRAPHIC);
                     var stampBytes = await FormFileToByteArrayAsync(stampFile);
                     ImageData imageData = ImageDataFactory.Create(stampBytes);
-                    signatureAppearance.SetImage(imageData);
+                    signatureAppearance.SetSignatureGraphic(imageData);
                     signatureAppearance.SetLayer2Text(" ");
                 }
                 else
