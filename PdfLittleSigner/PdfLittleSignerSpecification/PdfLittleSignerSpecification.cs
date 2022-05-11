@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 using Moq;
 using PdfLittleSigner;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace PdfLittleSignerSpecification
 {

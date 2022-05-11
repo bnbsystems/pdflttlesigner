@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Drawing;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
@@ -8,6 +9,8 @@ using iText.IO.Image;
 using iText.Kernel.Pdf;
 using iText.Signatures;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Math;
 
@@ -22,20 +25,22 @@ namespace PdfLittleSigner
         private Stream _outputPdfStream;
         private readonly Size _imageSize = new(248, 99);
         private readonly Size _imageLocation = new(60, 100);
+        private readonly ILogger _logger;
 
         #endregion
 
         #region Constructors
 
-        public PdpSigner(string output)
+        public PdpSigner(string output, [Optional] ILogger logger)
         {
-            
             _outputPdfFileString = output;
+            _logger = logger ?? NullLogger.Instance;
         }
 
-        public PdpSigner(Stream output)
+        public PdpSigner(Stream output, [Optional] ILogger logger)
         {
             _outputPdfStream = output;
+            _logger = logger ?? NullLogger.Instance; ;
         }
 
         #endregion
@@ -54,9 +59,12 @@ namespace PdfLittleSigner
                 GetChain(certificate) 
                 : throw new CryptographicException("Certificate is NULL. Certificate can not be found");
 
+            _logger.Log(LogLevel.Information, "Reading pdf file...");
 
             await using Stream inputPdfFile = new MemoryStream(fileToSign);
             PdfReader pdfReader = new(inputPdfFile);
+
+            _logger.Log(LogLevel.Information, "Creating output stream...");
 
             if (_outputPdfStream == null && !string.IsNullOrEmpty(_outputPdfFileString))
             {
@@ -71,9 +79,15 @@ namespace PdfLittleSigner
             try
             {
                 var pdfSigner = GetPdfSigner(pdfReader);
+
+                _logger.Log(LogLevel.Information, "Setting signature appearance...");
                 await ConfigureSignatureAppearance(iSignReason, iSignContact, iSignLocation, visible, stampFile,
                     certificate, pdfSigner);
+
+                _logger.Log(LogLevel.Information, "Loading private key and signature data...");
                 var signature = CreateExternalSignature(certificate);
+
+                _logger.Log(LogLevel.Information, "Signing pdf...");
                 pdfSigner.SignDetached(signature, chain, null, null, null, 0, PdfSigner.CryptoStandard.CMS);
             }
             catch (IOException ioe)
@@ -84,7 +98,7 @@ namespace PdfLittleSigner
             {
                 await _outputPdfStream.DisposeAsync();
             }
-            
+            _logger.Log(LogLevel.Information, "Signing pdf successful.");
             return true;
         }
 

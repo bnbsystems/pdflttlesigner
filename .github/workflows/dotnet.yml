@@ -1,0 +1,39 @@
+name: .NET
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: dotnet info
+      run: dotnet --info
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 6.0.x
+    - name: Restore dependencies
+      run: dotnet restore
+      working-directory: ./src
+    - name: Build
+      run: dotnet build --no-restore
+      working-directory: ./PdfLittleSigner
+    - name: Test
+      run: dotnet test --no-build --verbosity normal
+      working-directory: ./PdfLittleSigner
+    - uses: xt0rted/dotnet-format@v1.2.0
+      with:
+        action: "fix"
+
+        only-changed-files: "true"
+    - uses: xt0rted/dotnet-format-problem-matcher@v1
+    - run: dotnet tool install -g dotnet-format
+    - run: dotnet format --folder ./src --check -v diag
+    
