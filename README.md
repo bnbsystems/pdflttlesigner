@@ -14,7 +14,21 @@ var result = await pdfSigner.Sign("ReasonToSign", "Contact", "PhysicalLocation",
 and you will get a signed pdf.
 
 
-To generate certificate and generate .pfx file which contains both certificate andkey you can use OpenSSL tool. Install OpenSSL and then open command line or powershell and eneter following commands:
+To generate .pfx file which contains both certificate and key you can use OpenSSL tool. Build and install OpenSSL from github source code following documentation instructions or download prebuilt binaries from thrid party binary distributors (some of them even provide self-install executables):
+
+- OpenSSL github: https://github.com/openssl/openssl
+
+- Wiki with links to third party distributors: https://wiki.openssl.org/index.php/Binaries
+
+After installing OpenSSL you should edit PATH variable. To do this you need to:
+1. Hit the Windows button on your keyboard or click it in the task bar, then search for "Environment Variables" and System Properties window will pop.
+2. In advanced tab click Environment Variables button and screen will pop up showing User variables and System variables.
+3. In the User variables section, select Path and click Edit.
+4. Select empty field, click browse, navigate to OpenSSL bin folder and click Ok. Path to OpenSSL binaries should look somewhat like this: "C:\Program Files\OpenSSL-Win64\bin".
+5. Click Ok to save the changes. Now you should be able to run openssl comands in Command Line.
+
+After installing OpenSSL run folowing commands in Command Line to generate .pfx file.
+
 ```
 openssl req -x509 -newkey rsa:4096 -keyout pkey.key -out cert.cer -sha256 -days 365
 openssl pkcs12 -export -out cert_file.pfx -inkey pkey.key -in cert.cer
