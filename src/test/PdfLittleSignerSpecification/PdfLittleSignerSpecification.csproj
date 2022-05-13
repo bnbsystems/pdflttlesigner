@@ -34,7 +34,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\PdfLittleSigner\PdfLittleSigner.csproj" />
+    <ProjectReference Include="..\..\main\PdfLittleSigner\PdfLittleSigner.csproj" />
   </ItemGroup>
 
 </Project>
