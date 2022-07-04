@@ -15,9 +15,9 @@ and you will get a signed PDF.
 
 To generate .pfx file which contains both certificate and key you can use OpenSSL tool. Build and install OpenSSL from GitHub source code following documentation instructions or download prebuilt binaries from thrid party binary distributors (some of them even provide self-install executables):
 
-- OpenSSL GitHub: [https://github.com/openssl/openssl](https://github.com/openssl/openssl) 
+- OpenSSL GitHub: [https://github.com/openssl/openssl](https://github.com/openssl/openssl)
 
-- Wiki with links to third party distributors: [https://wiki.openssl.org/index.php/Binaries](https://wiki.openssl.org/index.php/Binaries) 
+- Wiki with links to third party distributors: [https://wiki.openssl.org/index.php/Binaries](https://wiki.openssl.org/index.php/Binaries)
 
 After installing OpenSSL you should edit PATH variable. To do this you need to:
 1. Hit the Windows button on your keyboard or click it in the task bar, then search for "Environment Variables" and System Properties window will pop.
