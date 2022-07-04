@@ -34,6 +34,6 @@ jobs:
 
         only-changed-files: "true"
     - uses: xt0rted/dotnet-format-problem-matcher@v1
-    - run: dotnet tool install -g dotnet-format --version 5.1.225507
-    - run: dotnet format --folder ./src --check -v diag
+    - run: dotnet tool install -g dotnet-format
+    - run: dotnet format ./src/PdfLittleSigner.sln --verify-no-changes -v diag
     
