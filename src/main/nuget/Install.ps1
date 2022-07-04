@@ -1,2 +1,2 @@
-param($installPath, $toolsPath, $package, $project)
+param($project)
     $project.Object.References.Add("PdfLittleSigner")
