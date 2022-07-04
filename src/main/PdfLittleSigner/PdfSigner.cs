@@ -55,8 +55,8 @@ namespace PdfLittleSigner
             byte[] fileToSign)
         {
 
-            var chain = certificate != null ? 
-                GetChain(certificate) 
+            var chain = certificate != null ?
+                GetChain(certificate)
                 : throw new CryptographicException("Certificate is NULL. Certificate can not be found");
 
             _logger.Log(LogLevel.Information, "Reading pdf file...");
@@ -70,7 +70,7 @@ namespace PdfLittleSigner
             {
                 _outputPdfStream = new FileStream(_outputPdfFileString, FileMode.OpenOrCreate, FileAccess.Write);
             }
-            
+
             if (_outputPdfStream == null)
             {
                 return false;
@@ -90,7 +90,7 @@ namespace PdfLittleSigner
                 _logger.Log(LogLevel.Information, "Signing pdf...");
                 pdfSigner.SignDetached(signature, chain, null, null, null, 0, PdfSigner.CryptoStandard.CMS);
             }
-            catch (IOException ioe)
+            catch (IOException)
             {
                 return false;
             }
@@ -176,7 +176,7 @@ namespace PdfLittleSigner
             PdfSigner pdfSigner = new(pdfReader, _outputPdfStream, stampingProperties);
             pdfSigner.SetSignDate(DateTime.Now);
             pdfSigner.SetCertificationLevel(PdfSigner.CERTIFIED_NO_CHANGES_ALLOWED);
-            
+
             return pdfSigner;
         }
 
@@ -185,7 +185,7 @@ namespace PdfLittleSigner
             Org.BouncyCastle.X509.X509CertificateParser cp = new Org.BouncyCastle.X509.X509CertificateParser();
             var certRawData = cert.RawData;
             var certificates = cp.ReadCertificate(certRawData);
-            Org.BouncyCastle.X509.X509Certificate[] chain = {certificates};
+            Org.BouncyCastle.X509.X509Certificate[] chain = { certificates };
             return chain;
         }
 

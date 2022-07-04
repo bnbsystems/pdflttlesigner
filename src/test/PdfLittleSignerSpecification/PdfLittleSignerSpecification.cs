@@ -1,6 +1,7 @@
 using System.IO;
 using System.Reflection;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using AutoFixture;
 using FluentAssertions;
@@ -14,24 +15,34 @@ namespace PdfLittleSignerSpecification
 {
     public class PdfLittleSignerSpecification
     {
+        string commonName;
+        X509Certificate2 cert;
+        string signReason;
+        string contact;
+        string location;
+        byte[] fileToSignBytes;
+
+        public PdfLittleSignerSpecification()
+        {
+            var fixture = new Fixture();
+
+            commonName = fixture.Create<string>();
+            cert = X509CertificateTestingUtils.GenerateX509Certificate2WithRsaKey(commonName);
+
+            signReason = fixture.Create<string>();
+            contact = fixture.Create<string>();
+            location = fixture.Create<string>();
+
+            var fileToSign = "Data/sample.pdf";
+            fileToSignBytes = File.ReadAllBytes(fileToSign);
+        }
+
         [Fact]
         public async Task Should_not_sign_pdf_when_given_empty_output_file_path()
         {
             // Arrange
-            var fixture = new Fixture();
-
-            var commonName = fixture.Create<string>();
-            var cert = X509CertificateTestingUtils.GenerateX509Certificate2WithRsaKey(commonName);
-
-            var signReason = fixture.Create<string>();
-            var contact = fixture.Create<string>();
-            var location = fixture.Create<string>();
             var visible = false;
-            IFormFile stamp = null;
-
-            var fileToSign = "Data/sample.pdf";
-            byte [] fileToSignBytes = await File.ReadAllBytesAsync(fileToSign);
-
+            IFormFile? stamp = null;
             var pdfSigner = new PdpSigner(string.Empty, null);
 
             // Act
@@ -45,20 +56,9 @@ namespace PdfLittleSignerSpecification
         public async Task Should_sign_pdf_when_given_valid_output_file_path()
         {
             // Arrange
-            var fixture = new Fixture();
 
-            var commonName = fixture.Create<string>();
-            var cert = X509CertificateTestingUtils.GenerateX509Certificate2WithRsaKey(commonName);
-
-            var signReason = fixture.Create<string>();
-            var contact = fixture.Create<string>();
-            var location = fixture.Create<string>();
             var visible = true;
-            IFormFile stamp = null;
-
-            var fileToSign = "Data/sample.pdf";
-            byte[] fileToSignBytes = await File.ReadAllBytesAsync(fileToSign);
-
+            IFormFile? stamp = null;
             var pdfSigner = new PdpSigner("output.pdf", null);
 
             // Act
@@ -72,21 +72,10 @@ namespace PdfLittleSignerSpecification
         public async Task Should_not_sign_pdf_when_given_null_output_stream()
         {
             // Arrange
-            var fixture = new Fixture();
-
-            var commonName = fixture.Create<string>();
-            var cert = X509CertificateTestingUtils.GenerateX509Certificate2WithRsaKey(commonName);
-
-            var signReason = fixture.Create<string>();
-            var contact = fixture.Create<string>();
-            var location = fixture.Create<string>();
             var visible = false;
-            IFormFile stamp = null;
+            IFormFile? stamp = null;
 
-            var fileToSign = "Data/sample.pdf";
-            byte[] fileToSignBytes = await File.ReadAllBytesAsync(fileToSign);
-
-            Stream fs = null;
+            Stream? fs = null;
             var pdfSigner = new PdpSigner(fs, null);
 
             // Act
@@ -110,8 +99,9 @@ namespace PdfLittleSignerSpecification
             var signReason = fixture.Create<string>();
             var contact = fixture.Create<string>();
             var location = fixture.Create<string>();
-            var visible = false;
             var stampFileMock = new Mock<IFormFile>();
+            var visible = false;
+
 
             var fileToSign = "Data/sample.pdf";
             byte[] fileToSignBytes = await File.ReadAllBytesAsync(fileToSign);
@@ -126,7 +116,7 @@ namespace PdfLittleSignerSpecification
             result.Should().BeTrue();
         }
 
-        
+
         [Fact]
         public void Should_create_external_signature()
         {
