@@ -7,7 +7,7 @@ It's very easy to use:
 ```csharp
 var cert = new X509Certificate2("cert_file.pfx", "cert_password", X509KeyStorageFlags.Exportable);
 
-var pdfSigner = new PdpSigner("output.pdf", null);
+var pdfSigner = new PdfSigner("output.pdf", null);
 var result = await pdfSigner.Sign("ReasonToSign", "Contact", "PhysicalLocation", true, stampImage, cert, fileToSign);
 ```
 and you will get a signed PDF.
@@ -46,7 +46,7 @@ If you want to enable logging, then you can pass any logger which extends Micros
 
 ```csharp
 using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-var pdfSigner = new PdpSigner("output.pdf", loggerFactory.CreateLogger<PdpSigner>());
+var pdfSigner = new PdfSigner("output.pdf", loggerFactory.CreateLogger<PdpSigner>());
 ```
 
 Now available under NuGet. Just type:

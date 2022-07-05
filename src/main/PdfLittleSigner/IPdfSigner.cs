@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Http;
 namespace PdfLittleSigner
 {
 
-    public interface IPdpSigner
+    public interface IPdfSigner
     {
         Task<bool> Sign(string iSignReason,
             string iSignContact,

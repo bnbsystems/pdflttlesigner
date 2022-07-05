@@ -8,26 +8,28 @@ using FluentAssertions;
 using iText.Signatures;
 using Microsoft.AspNetCore.Http;
 using Moq;
-using PdfLittleSigner;
 using Xunit;
+using PdfSigner = PdfLittleSigner.PdfSigner;
 
 namespace PdfLittleSignerSpecification
 {
     public class PdfLittleSignerSpecification
     {
-        string commonName;
-        X509Certificate2 cert;
-        string signReason;
-        string contact;
-        string location;
-        byte[] fileToSignBytes;
+        readonly string commonName;
+        readonly X509Certificate2 rsaCert;
+        readonly X509Certificate2 ecdsaCert;
+        readonly string signReason;
+        readonly string contact;
+        readonly string location;
+        readonly byte[] fileToSignBytes;
 
         public PdfLittleSignerSpecification()
         {
             var fixture = new Fixture();
 
             commonName = fixture.Create<string>();
-            cert = X509CertificateTestingUtils.GenerateX509Certificate2WithRsaKey(commonName);
+            rsaCert = X509CertificateTestingUtils.GenerateX509Certificate2WithRsaKey(commonName);
+            ecdsaCert = X509CertificateTestingUtils.GenerateX509Certificate2WithEcdsaKey(commonName);
 
             signReason = fixture.Create<string>();
             contact = fixture.Create<string>();
@@ -43,10 +45,10 @@ namespace PdfLittleSignerSpecification
             // Arrange
             var visible = false;
             IFormFile? stamp = null;
-            var pdfSigner = new PdpSigner(string.Empty, null);
+            var pdfSigner = new PdfSigner(string.Empty, null);
 
             // Act
-            var result = await pdfSigner.Sign(signReason, contact, location, visible, stamp, cert, fileToSignBytes);
+            var result = await pdfSigner.Sign(signReason, contact, location, visible, stamp, rsaCert, fileToSignBytes);
 
             // Assert
             result.Should().BeFalse();
@@ -56,13 +58,12 @@ namespace PdfLittleSignerSpecification
         public async Task Should_sign_pdf_when_given_valid_output_file_path()
         {
             // Arrange
-
             var visible = true;
             IFormFile? stamp = null;
-            var pdfSigner = new PdpSigner("output.pdf", null);
+            var pdfSigner = new PdfSigner("output.pdf", null);
 
             // Act
-            var result = await pdfSigner.Sign(signReason, contact, location, visible, stamp, cert, fileToSignBytes);
+            var result = await pdfSigner.Sign(signReason, contact, location, visible, stamp, rsaCert, fileToSignBytes);
 
             // Assert
             result.Should().BeTrue();
@@ -76,10 +77,10 @@ namespace PdfLittleSignerSpecification
             IFormFile? stamp = null;
 
             Stream? fs = null;
-            var pdfSigner = new PdpSigner(fs, null);
+            var pdfSigner = new PdfSigner(fs, null);
 
             // Act
-            var result = await pdfSigner.Sign(signReason, contact, location, visible, stamp, cert, fileToSignBytes);
+            var result = await pdfSigner.Sign(signReason, contact, location, visible, stamp, rsaCert, fileToSignBytes);
 
             // Assert
             result.Should().BeFalse();
@@ -90,15 +91,6 @@ namespace PdfLittleSignerSpecification
         public async Task Should_sign_pdf_when_given_valid_output_stream()
         {
             // Arrange
-
-            var fixture = new Fixture();
-
-            var commonName = fixture.Create<string>();
-            var cert = X509CertificateTestingUtils.GenerateX509Certificate2WithRsaKey(commonName);
-
-            var signReason = fixture.Create<string>();
-            var contact = fixture.Create<string>();
-            var location = fixture.Create<string>();
             var stampFileMock = new Mock<IFormFile>();
             var visible = false;
 
@@ -107,10 +99,10 @@ namespace PdfLittleSignerSpecification
             byte[] fileToSignBytes = await File.ReadAllBytesAsync(fileToSign);
 
             await using FileStream fs = new FileStream("output.pdf", FileMode.OpenOrCreate, FileAccess.Write);
-            var pdfSigner = new PdpSigner(fs, null);
+            var pdfSigner = new PdfSigner(fs, null);
 
             // Act
-            var result = await pdfSigner.Sign(signReason, contact, location, visible, stampFileMock.Object, cert, fileToSignBytes);
+            var result = await pdfSigner.Sign(signReason, contact, location, visible, stampFileMock.Object, rsaCert, fileToSignBytes);
 
             // Assert
             result.Should().BeTrue();
@@ -121,14 +113,9 @@ namespace PdfLittleSignerSpecification
         public void Should_create_external_signature()
         {
             // Arrange
-            var fixture = new Fixture();
-
-            var commonName = fixture.Create<string>();
-            var cert = X509CertificateTestingUtils.GenerateX509Certificate2WithRsaKey(commonName);
-
-            PdpSigner pdfSigner = new("output.pdf", null);
-            MethodInfo? methodInfo = typeof(PdpSigner).GetMethod("CreateExternalSignature", BindingFlags.NonPublic | BindingFlags.Instance);
-            object[] parameters = { cert };
+            PdfSigner pdfSigner = new("output.pdf", null);
+            MethodInfo? methodInfo = typeof(PdfSigner).GetMethod("CreateExternalSignature", BindingFlags.NonPublic | BindingFlags.Instance);
+            object[] parameters = { rsaCert };
 
             // Act
             var result = methodInfo?.Invoke(pdfSigner, parameters);
@@ -147,14 +134,9 @@ namespace PdfLittleSignerSpecification
         public void Should_not_create_external_signature_when_there_is_no_rsa_private_key_in_certificate()
         {
             // Arrange
-            var fixture = new Fixture();
-
-            var commonName = fixture.Create<string>();
-            var cert = X509CertificateTestingUtils.GenerateX509Certificate2WithEcdsaKey(commonName);
-
-            PdpSigner pdfSigner = new("output.pdf", null);
-            MethodInfo? methodInfo = typeof(PdpSigner).GetMethod("CreateExternalSignature", BindingFlags.NonPublic | BindingFlags.Instance);
-            object[] parameters = { cert };
+            PdfSigner pdfSigner = new("output.pdf", null);
+            MethodInfo? methodInfo = typeof(PdfSigner).GetMethod("CreateExternalSignature", BindingFlags.NonPublic | BindingFlags.Instance);
+            object[] parameters = { ecdsaCert };
 
             // Act - Assert
             var result = Assert.Throws<TargetInvocationException>(() => methodInfo?.Invoke(pdfSigner, parameters));
