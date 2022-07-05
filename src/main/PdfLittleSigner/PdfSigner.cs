@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Drawing;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
@@ -17,7 +16,7 @@ using Org.BouncyCastle.Math;
 namespace PdfLittleSigner
 {
 
-    public class PdpSigner : IPdpSigner
+    public class PdfSigner : IPdfSigner
     {
         #region Properties
 
@@ -25,22 +24,22 @@ namespace PdfLittleSigner
         private Stream _outputPdfStream;
         private readonly Size _imageSize = new(248, 99);
         private readonly Size _imageLocation = new(60, 100);
-        private readonly ILogger<PdpSigner> _logger;
+        private readonly ILogger<PdfSigner> _logger;
 
         #endregion
 
         #region Constructors
 
-        public PdpSigner(string output, ILogger<PdpSigner> logger)
+        public PdfSigner(string output, ILogger<PdfSigner> logger)
         {
             _outputPdfFileString = output;
-            _logger = logger ?? new NullLogger<PdpSigner>();
+            _logger = logger ?? new NullLogger<PdfSigner>();
         }
 
-        public PdpSigner(Stream output, ILogger<PdpSigner> logger)
+        public PdfSigner(Stream output, ILogger<PdfSigner> logger)
         {
             _outputPdfStream = output;
-            _logger = logger ?? new NullLogger<PdpSigner>();
+            _logger = logger ?? new NullLogger<PdfSigner>();
         }
 
         #endregion
@@ -88,7 +87,7 @@ namespace PdfLittleSigner
                 var signature = CreateExternalSignature(certificate);
 
                 _logger.Log(LogLevel.Information, "Signing pdf...");
-                pdfSigner.SignDetached(signature, chain, null, null, null, 0, PdfSigner.CryptoStandard.CMS);
+                pdfSigner.SignDetached(signature, chain, null, null, null, 0, iText.Signatures.PdfSigner.CryptoStandard.CMS);
             }
             catch (IOException)
             {
@@ -134,7 +133,7 @@ namespace PdfLittleSigner
         }
 
         private async Task ConfigureSignatureAppearance(string iSignReason, string iSignContact, string iSignLocation,
-            bool visible, IFormFile stampFile, X509Certificate2 certificate, PdfSigner pdfSigner)
+            bool visible, IFormFile stampFile, X509Certificate2 certificate, iText.Signatures.PdfSigner pdfSigner)
         {
             var signatureAppearance = pdfSigner.GetSignatureAppearance();
             signatureAppearance
@@ -169,13 +168,13 @@ namespace PdfLittleSigner
             }
         }
 
-        private PdfSigner GetPdfSigner(PdfReader pdfReader)
+        private iText.Signatures.PdfSigner GetPdfSigner(PdfReader pdfReader)
         {
             StampingProperties stampingProperties = new StampingProperties();
 
-            PdfSigner pdfSigner = new(pdfReader, _outputPdfStream, stampingProperties);
+            iText.Signatures.PdfSigner pdfSigner = new(pdfReader, _outputPdfStream, stampingProperties);
             pdfSigner.SetSignDate(DateTime.Now);
-            pdfSigner.SetCertificationLevel(PdfSigner.CERTIFIED_NO_CHANGES_ALLOWED);
+            pdfSigner.SetCertificationLevel(iText.Signatures.PdfSigner.CERTIFIED_NO_CHANGES_ALLOWED);
 
             return pdfSigner;
         }
