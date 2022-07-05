@@ -1,6 +1,0 @@
-D:\priv\Project\AroLibraries\AroLibraries\PdfLittleSigner\bin\Debug\PdfLittleSigner.dll
-D:\priv\Project\AroLibraries\AroLibraries\PdfLittleSigner\bin\Debug\PdfLittleSigner.pdb
-D:\priv\Project\AroLibraries\AroLibraries\PdfLittleSigner\bin\Debug\itextsharp.dll
-D:\priv\Project\AroLibraries\AroLibraries\PdfLittleSigner\obj\Debug\ResolveAssemblyReference.cache
-D:\priv\Project\AroLibraries\AroLibraries\PdfLittleSigner\obj\Debug\PdfLittleSigner.dll
-D:\priv\Project\AroLibraries\AroLibraries\PdfLittleSigner\obj\Debug\PdfLittleSigner.pdb
