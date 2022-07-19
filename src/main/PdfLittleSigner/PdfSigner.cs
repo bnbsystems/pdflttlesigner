@@ -4,7 +4,10 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using iText.IO.Font;
+using iText.IO.Font.Constants;
 using iText.IO.Image;
+using iText.Kernel.Font;
 using iText.Kernel.Pdf;
 using iText.Signatures;
 using Microsoft.AspNetCore.Http;
@@ -170,6 +173,9 @@ namespace PdfLittleSigner
                 else
                 {
                     signatureAppearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.DESCRIPTION);
+                    var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA, PdfEncodings.CP1250);
+                    signatureAppearance.SetLayer2Font(font);
+
                     string field = certificate.GetNameInfo(X509NameType.SimpleName, false);
                     var signatureDate = DateTime.Now;
                     var layer2Text = "Operat podpisany cyfrowo \n" +
