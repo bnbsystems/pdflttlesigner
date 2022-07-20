@@ -31,7 +31,7 @@ namespace PdfLittleSigner
         private Stream _outputPdfStream;
         private readonly ILogger<PdfSigner> _logger;
         public Size ImageSize { get; set; } = new(150, 150);
-        public int StampMargin { get; set; } = 5;
+        public int SignatureMargin { get; set; } = 5;
         public int JpgConversionQuality { get; set; } = 75;
         public string HashAlgorithm { get; set; } = DigestAlgorithms.SHA256;
         public PdfFont Font { get; set; } = PdfFontFactory.CreateFont(StandardFonts.HELVETICA, PdfEncodings.CP1250);
@@ -167,13 +167,7 @@ namespace PdfLittleSigner
                     signatureAppearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.GRAPHIC);
                     var stampBytes = await FormFileToByteArrayAsync(stampFile);
                     using var stampImage = Image.Load(stampBytes);
-                    stampImage.Mutate(x => x.BackgroundColor(SixLabors.ImageSharp.Color.White).Resize(new ResizeOptions()
-                    {
-                        Mode = ResizeMode.Stretch,
-                        Position = AnchorPositionMode.Center,
-                        Size = new SixLabors.ImageSharp.Size(ImageSize.Width, ImageSize.Height),
-
-                    }));
+                    ResizeImage(stampImage);
                     using var memoryStream = new MemoryStream();
                     await stampImage.SaveAsync(memoryStream, new JpegEncoder() { Quality = JpgConversionQuality });
                     var resizedStampBytes = memoryStream.ToArray();
@@ -198,10 +192,23 @@ namespace PdfLittleSigner
             }
         }
 
+        private void ResizeImage(Image stampImage)
+        {
+            stampImage.Mutate(x => x.BackgroundColor(SixLabors.ImageSharp.Color.White).Resize(new ResizeOptions()
+            {
+                Mode = ResizeMode.Stretch,
+                Position = AnchorPositionMode.Center,
+                Size = new SixLabors.ImageSharp.Size(ImageSize.Width, ImageSize.Height),
+
+            }));
+        }
+
         private void CalculateSignatureLocation(Rectangle pageSize, out float signatureLocationX, out float signatureLocationY)
         {
-            signatureLocationX = pageSize.GetWidth() - ImageSize.Width - StampMargin;
-            signatureLocationY = pageSize.GetHeight() - ImageSize.Height - StampMargin;
+            var remainingWidth = pageSize.GetWidth() - ImageSize.Width - SignatureMargin;
+            var remainingHeight = pageSize.GetHeight() - ImageSize.Height - SignatureMargin;
+            signatureLocationX = remainingWidth >= 0 ? remainingWidth : 0;
+            signatureLocationY = remainingHeight >= 0 ? remainingHeight : 0;
         }
 
         private iText.Signatures.PdfSigner GetPdfSigner(PdfReader pdfReader)
