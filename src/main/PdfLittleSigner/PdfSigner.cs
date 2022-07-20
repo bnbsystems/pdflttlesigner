@@ -29,10 +29,13 @@ namespace PdfLittleSigner
 
         private readonly string _outputPdfFileString = "";
         private Stream _outputPdfStream;
-        private readonly Size _imageSize = new(150, 150);
         private readonly ILogger<PdfSigner> _logger;
-        private string[] _unsupportedImageFormats = { ".png" };
-        private const int _stampMargin = 5;
+        public Size ImageSize { get; set; } = new(150, 150);
+        public int StampMargin { get; set; } = 5;
+        public int JpgConversionQuality { get; set; } = 75;
+        public string HashAlgorithm { get; set; } = DigestAlgorithms.SHA256;
+        public PdfFont Font { get; set; } = PdfFontFactory.CreateFont(StandardFonts.HELVETICA, PdfEncodings.CP1250);
+        public float FontSize { get; set; } = 12;
 
         #endregion
 
@@ -112,9 +115,9 @@ namespace PdfLittleSigner
             return true;
         }
 
+        #region private methods
         private IExternalSignature CreateExternalSignature(X509Certificate2 certificate)
         {
-            var hashAlgorithm = DigestAlgorithms.SHA256;
             var rsa = certificate.GetRSAPrivateKey();
             if (rsa == null)
             {
@@ -140,7 +143,7 @@ namespace PdfLittleSigner
                 dq,
                 inverseQ);
 
-            IExternalSignature signature = new PrivateKeySignature(privateKey, hashAlgorithm);
+            IExternalSignature signature = new PrivateKeySignature(privateKey, HashAlgorithm);
             return signature;
         }
 
@@ -155,29 +158,24 @@ namespace PdfLittleSigner
 
             if (visible)
             {
-                var signatureLocationX = pageSize.GetWidth() - _imageSize.Width - _stampMargin;
-                var signatureLocationY = pageSize.GetHeight() - _imageSize.Height - _stampMargin;
-                signatureAppearance.SetPageRect(new Rectangle(signatureLocationX, signatureLocationY, _imageSize.Width, _imageSize.Height));
+                float signatureLocationX, signatureLocationY;
+                CalculateSignatureLocation(pageSize, out signatureLocationX, out signatureLocationY);
+                signatureAppearance.SetPageRect(new Rectangle(signatureLocationX, signatureLocationY, ImageSize.Width, ImageSize.Height));
 
                 if (stampFile != null)
                 {
-                    var stampImageExtension = Path.GetExtension(stampFile.FileName);
-                    if (Array.Exists(_unsupportedImageFormats, element => element.Equals(stampImageExtension)))
-                    {
-                        throw new Exception($"{stampImageExtension} image files are not supported");
-                    }
-
                     signatureAppearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.GRAPHIC);
                     var stampBytes = await FormFileToByteArrayAsync(stampFile);
                     using var stampImage = Image.Load(stampBytes);
-                    stampImage.Mutate(x => x.Resize(new ResizeOptions()
+                    stampImage.Mutate(x => x.BackgroundColor(SixLabors.ImageSharp.Color.White).Resize(new ResizeOptions()
                     {
                         Mode = ResizeMode.Stretch,
                         Position = AnchorPositionMode.Center,
-                        Size = new SixLabors.ImageSharp.Size(_imageSize.Width, _imageSize.Height)
-                    })); ;
+                        Size = new SixLabors.ImageSharp.Size(ImageSize.Width, ImageSize.Height),
+
+                    }));
                     using var memoryStream = new MemoryStream();
-                    await stampImage.SaveAsync(memoryStream, new JpegEncoder() { Quality = 85 });
+                    await stampImage.SaveAsync(memoryStream, new JpegEncoder() { Quality = JpgConversionQuality });
                     var resizedStampBytes = memoryStream.ToArray();
 
                     ImageData imageData = ImageDataFactory.Create(resizedStampBytes);
@@ -187,9 +185,8 @@ namespace PdfLittleSigner
                 else
                 {
                     signatureAppearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.DESCRIPTION);
-                    var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA, PdfEncodings.CP1250);
-                    signatureAppearance.SetLayer2Font(font);
-                    signatureAppearance.SetLayer2FontSize(12);
+                    signatureAppearance.SetLayer2Font(Font);
+                    signatureAppearance.SetLayer2FontSize(FontSize);
 
                     string field = certificate.GetNameInfo(X509NameType.SimpleName, false);
                     var signatureDate = DateTime.Now;
@@ -201,9 +198,15 @@ namespace PdfLittleSigner
             }
         }
 
+        private void CalculateSignatureLocation(Rectangle pageSize, out float signatureLocationX, out float signatureLocationY)
+        {
+            signatureLocationX = pageSize.GetWidth() - ImageSize.Width - StampMargin;
+            signatureLocationY = pageSize.GetHeight() - ImageSize.Height - StampMargin;
+        }
+
         private iText.Signatures.PdfSigner GetPdfSigner(PdfReader pdfReader)
         {
-            StampingProperties stampingProperties = new StampingProperties();
+            StampingProperties stampingProperties = new();
             iText.Signatures.PdfSigner pdfSigner = new(pdfReader, _outputPdfStream, stampingProperties);
             pdfSigner.SetSignDate(DateTime.Now);
             pdfSigner.SetCertificationLevel(iText.Signatures.PdfSigner.CERTIFIED_NO_CHANGES_ALLOWED);
@@ -228,5 +231,7 @@ namespace PdfLittleSigner
 
             return stream.ToArray();
         }
+
+        #endregion
     }
 }
