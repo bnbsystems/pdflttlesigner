@@ -16,6 +16,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Math;
 using Rectangle = iText.Kernel.Geom.Rectangle;
+using Image = SixLabors.ImageSharp.Image;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Formats.Jpeg;
 
 namespace PdfLittleSigner
 {
@@ -26,7 +29,7 @@ namespace PdfLittleSigner
 
         private readonly string _outputPdfFileString = "";
         private Stream _outputPdfStream;
-        private readonly Size _imageSize = new(248, 99);
+        private readonly Size _imageSize = new(150, 150);
         private readonly ILogger<PdfSigner> _logger;
         private string[] _unsupportedImageFormats = { ".png" };
         private const int _stampMargin = 5;
@@ -166,7 +169,18 @@ namespace PdfLittleSigner
 
                     signatureAppearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.GRAPHIC);
                     var stampBytes = await FormFileToByteArrayAsync(stampFile);
-                    ImageData imageData = ImageDataFactory.Create(stampBytes);
+                    using var stampImage = Image.Load(stampBytes);
+                    stampImage.Mutate(x => x.Resize(new ResizeOptions()
+                    {
+                        Mode = ResizeMode.Stretch,
+                        Position = AnchorPositionMode.Center,
+                        Size = new SixLabors.ImageSharp.Size(_imageSize.Width, _imageSize.Height)
+                    })); ;
+                    using var memoryStream = new MemoryStream();
+                    await stampImage.SaveAsync(memoryStream, new JpegEncoder() { Quality = 85 });
+                    var resizedStampBytes = memoryStream.ToArray();
+
+                    ImageData imageData = ImageDataFactory.Create(resizedStampBytes);
                     signatureAppearance.SetSignatureGraphic(imageData);
                     signatureAppearance.SetLayer2Text(" ");
                 }
@@ -175,6 +189,7 @@ namespace PdfLittleSigner
                     signatureAppearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.DESCRIPTION);
                     var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA, PdfEncodings.CP1250);
                     signatureAppearance.SetLayer2Font(font);
+                    signatureAppearance.SetLayer2FontSize(12);
 
                     string field = certificate.GetNameInfo(X509NameType.SimpleName, false);
                     var signatureDate = DateTime.Now;
