@@ -16,9 +16,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Math;
 using Rectangle = iText.Kernel.Geom.Rectangle;
-using Image = SixLabors.ImageSharp.Image;
-using SixLabors.ImageSharp.Processing;
-using SixLabors.ImageSharp.Formats.Jpeg;
+using SkiaSharp;
 
 namespace PdfLittleSigner
 {
@@ -32,7 +30,8 @@ namespace PdfLittleSigner
         private readonly ILogger<PdfSigner> _logger;
         public Size ImageSize { get; set; } = new(150, 150);
         public int SignatureMargin { get; set; } = 5;
-        public int JpgConversionQuality { get; set; } = 75;
+        public SKFilterQuality ImageResizeQuality { get; set; } = SKFilterQuality.High;
+        public int JpegEncodingImageQuality = 75;
         public string HashAlgorithm { get; set; } = DigestAlgorithms.SHA256;
         public PdfFont Font { get; set; } = PdfFontFactory.CreateFont(StandardFonts.HELVETICA, PdfEncodings.CP1250);
         public float FontSize { get; set; } = 12;
@@ -165,12 +164,22 @@ namespace PdfLittleSigner
                 if (stampFile != null)
                 {
                     signatureAppearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.GRAPHIC);
+
                     var stampBytes = await FormFileToByteArrayAsync(stampFile);
-                    using var stampImage = Image.Load(stampBytes);
-                    ResizeImage(stampImage);
-                    using var memoryStream = new MemoryStream();
-                    await stampImage.SaveAsync(memoryStream, new JpegEncoder() { Quality = JpgConversionQuality });
-                    var resizedStampBytes = memoryStream.ToArray();
+                    using var stampBitmap = SKBitmap.Decode(stampBytes);
+                    using SKBitmap resizedStampBitmap = ResizeImage(stampBitmap);
+
+                    var stampImageExtension = Path.GetExtension(stampFile.FileName);
+                    byte[] resizedStampBytes;
+                    if (stampImageExtension.ToLower().Equals(".png"))
+                    {
+                        using var adjustedStampBitmap = RemoveTransparentBackgorund(resizedStampBitmap);
+                        resizedStampBytes = SKBitmapToByteArray(adjustedStampBitmap);
+                    }
+                    else
+                    {
+                        resizedStampBytes = SKBitmapToByteArray(resizedStampBitmap);
+                    }
 
                     ImageData imageData = ImageDataFactory.Create(resizedStampBytes);
                     signatureAppearance.SetSignatureGraphic(imageData);
@@ -192,15 +201,29 @@ namespace PdfLittleSigner
             }
         }
 
-        private void ResizeImage(Image stampImage)
+        private byte[] SKBitmapToByteArray(SKBitmap bitmap)
         {
-            stampImage.Mutate(x => x.BackgroundColor(SixLabors.ImageSharp.Color.White).Resize(new ResizeOptions()
-            {
-                Mode = ResizeMode.Stretch,
-                Position = AnchorPositionMode.Center,
-                Size = new SixLabors.ImageSharp.Size(ImageSize.Width, ImageSize.Height),
+            using var image = SKImage.FromBitmap(bitmap);
+            using var data = image.Encode(SKEncodedImageFormat.Jpeg, JpegEncodingImageQuality);
 
-            }));
+            return data.ToArray();
+        }
+
+        private SKBitmap RemoveTransparentBackgorund(SKBitmap bitmap)
+        {
+            using SKBitmap adjustedBitmap = new(bitmap.Width, bitmap.Height);
+            using (SKCanvas canvas = new(adjustedBitmap))
+            {
+                canvas.Clear(SKColors.White);
+                canvas.DrawBitmap(bitmap, 0, 0);
+            };
+
+            return adjustedBitmap.Copy();
+        }
+
+        private SKBitmap ResizeImage(SKBitmap stampBitmap)
+        {
+            return stampBitmap.Resize(new SKSizeI(ImageSize.Width, ImageSize.Height), ImageResizeQuality);
         }
 
         private void CalculateSignatureLocation(Rectangle pageSize, out float signatureLocationX, out float signatureLocationY)

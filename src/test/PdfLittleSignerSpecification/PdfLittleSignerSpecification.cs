@@ -12,7 +12,7 @@ using Moq;
 using Xunit;
 using PdfSigner = PdfLittleSigner.PdfSigner;
 using Rectangle = iText.Kernel.Geom.Rectangle;
-using Image = SixLabors.ImageSharp.Image;
+using SkiaSharp;
 
 namespace PdfLittleSignerSpecification
 {
@@ -179,19 +179,20 @@ namespace PdfLittleSignerSpecification
         public void Should_resize_image(int width, int height, int widthAfter, int heightAfter)
         {
             // Arrange
-            byte[] imageBytes = ImageTestingUtils.GenerateSingleColorRectangle(width, height, Color.Orange);
+            byte[] imageBytes = ImageTestingUtils.GenerateSingleColorRectangle(width, height, "#e2656d", 75);
             PdfSigner pdfSigner = new("output.pdf", null);
             pdfSigner.ImageSize = new Size(widthAfter, heightAfter);
             MethodInfo? methodInfo = typeof(PdfSigner).GetMethod("ResizeImage", BindingFlags.NonPublic | BindingFlags.Instance);
-            using var stampImage = Image.Load(imageBytes);
-            object[] parameters = { stampImage };
+            using var stampBitmap = SKBitmap.Decode(imageBytes);
+            object[] parameters = { stampBitmap };
 
             // Act
-            methodInfo?.Invoke(pdfSigner, parameters);
+            using SKBitmap? resizedBitmap = methodInfo?.Invoke(pdfSigner, parameters) as SKBitmap;
 
             // Assert
-            stampImage.Width.Should().Be(widthAfter);
-            stampImage.Height.Should().Be(heightAfter);
+            resizedBitmap.Should().NotBeNull();
+            resizedBitmap.Width.Should().Be(widthAfter);
+            resizedBitmap.Height.Should().Be(heightAfter);
         }
     }
 }
