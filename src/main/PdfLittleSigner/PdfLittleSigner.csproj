@@ -12,6 +12,7 @@
     <PackageReference Include="itext7" Version="7.2.2" />
     <PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="5.0.16" />
     <PackageReference Include="SkiaSharp" Version="2.88.0" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.0" />
     <PackageReference Include="System.Security.Cryptography.Pkcs" Version="6.0.0" />
     <PackageReference Include="System.Security.Permissions" Version="6.0.0" />
   </ItemGroup>
