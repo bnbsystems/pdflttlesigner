@@ -46,7 +46,7 @@ If you want to enable logging, then you can pass any logger which extends Micros
 
 ```csharp
 using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-var pdfSigner = new PdfSigner("output.pdf", loggerFactory.CreateLogger<PdpSigner>());
+var pdfSigner = new PdfSigner("output.pdf", loggerFactory.CreateLogger<PdfSigner>());
 ```
 
 Now available under NuGet. Just type:

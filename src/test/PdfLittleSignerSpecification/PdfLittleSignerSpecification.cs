@@ -1,3 +1,4 @@
+using System.Drawing;
 using System.IO;
 using System.Reflection;
 using System.Security.Cryptography;
@@ -10,6 +11,8 @@ using Microsoft.AspNetCore.Http;
 using Moq;
 using Xunit;
 using PdfSigner = PdfLittleSigner.PdfSigner;
+using Rectangle = iText.Kernel.Geom.Rectangle;
+using SkiaSharp;
 
 namespace PdfLittleSignerSpecification
 {
@@ -142,6 +145,54 @@ namespace PdfLittleSignerSpecification
             var result = Assert.Throws<TargetInvocationException>(() => methodInfo?.Invoke(pdfSigner, parameters));
             result.InnerException.Should().NotBeNull();
             result.InnerException.Should().BeOfType<CryptographicException>();
+        }
+
+        [Theory]
+        [InlineData(600, 800, 150, 150, 5, 445, 645)]
+        [InlineData(100, 100, 150, 150, 5, 0, 0)]
+        public void Should_calculate_signature_location(float pageWidth, float pageHeight, int imageWidth, int imageHeight, int signatureMargin, float expectedX, float expectedY)
+        {
+            // Arrange
+            PdfSigner pdfSigner = new("output.pdf", null);
+            pdfSigner.ImageSize = new Size(imageWidth, imageHeight);
+            pdfSigner.SignatureMargin = signatureMargin;
+            MethodInfo? methodInfo = typeof(PdfSigner).GetMethod("CalculateSignatureLocation", BindingFlags.NonPublic | BindingFlags.Instance);
+            Rectangle pageSize = new Rectangle(pageWidth, pageHeight);
+            object[] parameters = { pageSize, null, null };
+            float precision = 0.001F;
+
+            // Act
+            methodInfo?.Invoke(pdfSigner, parameters);
+            var signatureLocationX = (float)parameters[1];
+            var signatureLocationY = (float)parameters[2];
+
+            // Assert
+            signatureLocationX.Should().BeApproximately(expectedX, precision);
+            signatureLocationY.Should().BeApproximately(expectedY, precision);
+        }
+
+        [Theory]
+        [InlineData(100, 100, 150, 150)]
+        [InlineData(121, 145, 150, 150)]
+        [InlineData(300, 300, 100, 100)]
+        [InlineData(316, 212, 100, 100)]
+        public void Should_resize_image(int width, int height, int widthAfter, int heightAfter)
+        {
+            // Arrange
+            byte[] imageBytes = ImageTestingUtils.GenerateSingleColorRectangle(width, height, "#FF0000", 75);
+            PdfSigner pdfSigner = new("output.pdf", null);
+            pdfSigner.ImageSize = new Size(widthAfter, heightAfter);
+            MethodInfo? methodInfo = typeof(PdfSigner).GetMethod("ResizeImage", BindingFlags.NonPublic | BindingFlags.Instance);
+            using var stampBitmap = SKBitmap.Decode(imageBytes);
+            object[] parameters = { stampBitmap };
+
+            // Act
+            using SKBitmap? resizedBitmap = methodInfo?.Invoke(pdfSigner, parameters) as SKBitmap;
+
+            // Assert
+            resizedBitmap.Should().NotBeNull();
+            resizedBitmap.Width.Should().Be(widthAfter);
+            resizedBitmap.Height.Should().Be(heightAfter);
         }
     }
 }
