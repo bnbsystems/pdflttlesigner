@@ -179,7 +179,7 @@ namespace PdfLittleSignerSpecification
         public void Should_resize_image(int width, int height, int widthAfter, int heightAfter)
         {
             // Arrange
-            byte[] imageBytes = ImageTestingUtils.GenerateSingleColorRectangle(width, height, "#e2656d", 75);
+            byte[] imageBytes = ImageTestingUtils.GenerateSingleColorRectangle(width, height, "#FF0000", 75);
             PdfSigner pdfSigner = new("output.pdf", null);
             pdfSigner.ImageSize = new Size(widthAfter, heightAfter);
             MethodInfo? methodInfo = typeof(PdfSigner).GetMethod("ResizeImage", BindingFlags.NonPublic | BindingFlags.Instance);

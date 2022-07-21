@@ -1,5 +1,4 @@
-﻿
-using SkiaSharp;
+﻿using SkiaSharp;
 
 namespace PdfLittleSignerSpecification
 {
