@@ -38,6 +38,7 @@ namespace PdfLittleSigner
         public float FontSize { get; set; } = 12;
         public CultureInfo SignDateCultureInfo { get; set; } = new CultureInfo("pl-PL");
         public string SignDateFormat { get; set; } = "dd.MM.yyyy HH:mm:ss";
+        public TimeZoneInfo SignDateTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time");
 
         #endregion
 
@@ -240,7 +241,8 @@ namespace PdfLittleSigner
         {
             StampingProperties stampingProperties = new();
             iText.Signatures.PdfSigner pdfSigner = new(pdfReader, _outputPdfStream, stampingProperties);
-            pdfSigner.SetSignDate(DateTime.Now);
+            var signDate = TimeZoneInfo.ConvertTime(DateTime.UtcNow, SignDateTimeZone);
+            pdfSigner.SetSignDate(signDate);
             pdfSigner.SetCertificationLevel(iText.Signatures.PdfSigner.CERTIFIED_NO_CHANGES_ALLOWED);
 
             return pdfSigner;
