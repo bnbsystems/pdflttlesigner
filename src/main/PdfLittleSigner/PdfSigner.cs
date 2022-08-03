@@ -17,6 +17,7 @@ using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Math;
 using Rectangle = iText.Kernel.Geom.Rectangle;
 using SkiaSharp;
+using System.Globalization;
 
 namespace PdfLittleSigner
 {
@@ -35,6 +36,9 @@ namespace PdfLittleSigner
         public string HashAlgorithm { get; set; } = DigestAlgorithms.SHA256;
         public PdfFont Font { get; set; } = PdfFontFactory.CreateFont(StandardFonts.HELVETICA, PdfEncodings.CP1250);
         public float FontSize { get; set; } = 12;
+        public CultureInfo SignDateCultureInfo { get; set; } = new CultureInfo("pl-PL");
+        public string SignDateFormat { get; set; } = "dd.MM.yyyy HH:mm:ss";
+        public TimeZoneInfo SignDateTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time");
 
         #endregion
 
@@ -114,7 +118,7 @@ namespace PdfLittleSigner
             return true;
         }
 
-        #region private methods
+        #region Private methods
         private IExternalSignature CreateExternalSignature(X509Certificate2 certificate)
         {
             var rsa = certificate.GetRSAPrivateKey();
@@ -192,10 +196,9 @@ namespace PdfLittleSigner
                     signatureAppearance.SetLayer2FontSize(FontSize);
 
                     string field = certificate.GetNameInfo(X509NameType.SimpleName, false);
-                    var signatureDate = DateTime.Now;
                     var layer2Text = "Operat podpisany cyfrowo \n" +
                                      $"przez {field} \n" +
-                                     $"{signatureDate}";
+                                     pdfSigner.GetSignDate().ToString(SignDateFormat, SignDateCultureInfo);
                     signatureAppearance.SetLayer2Text(layer2Text);
                 }
             }
@@ -238,7 +241,8 @@ namespace PdfLittleSigner
         {
             StampingProperties stampingProperties = new();
             iText.Signatures.PdfSigner pdfSigner = new(pdfReader, _outputPdfStream, stampingProperties);
-            pdfSigner.SetSignDate(DateTime.Now);
+            var signDate = TimeZoneInfo.ConvertTime(DateTime.UtcNow, SignDateTimeZone);
+            pdfSigner.SetSignDate(signDate);
             pdfSigner.SetCertificationLevel(iText.Signatures.PdfSigner.CERTIFIED_NO_CHANGES_ALLOWED);
 
             return pdfSigner;
