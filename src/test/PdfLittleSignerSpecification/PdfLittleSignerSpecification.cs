@@ -1,198 +1,154 @@
-using System.Drawing;
+using AutoFixture;
+using FluentAssertions;
+using iText.Kernel.Pdf;
+using iText.Signatures;
+using PdfLittleSigner;
+using System;
 using System.IO;
-using System.Reflection;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
-using AutoFixture;
-using FluentAssertions;
-using iText.Signatures;
-using Microsoft.AspNetCore.Http;
-using Moq;
 using Xunit;
 using PdfSigner = PdfLittleSigner.PdfSigner;
-using Rectangle = iText.Kernel.Geom.Rectangle;
-using SkiaSharp;
 
 namespace PdfLittleSignerSpecification
 {
-    public class PdfLittleSignerSpecification
+    public class PdfLittleSignerSpecification : IDisposable
     {
         readonly string commonName;
         readonly X509Certificate2 rsaCert;
         readonly X509Certificate2 ecdsaCert;
-        readonly string signReason;
+        const string signReason = "Signed Reason";
         readonly string contact;
         readonly string location;
         readonly byte[] fileToSignBytes;
+        const string fileToSign = "Data/sample.pdf";
+        readonly string fileOutput;
+        readonly bool visible = false;
 
+        PdfSigner pdfSigner;
         public PdfLittleSignerSpecification()
         {
             var fixture = new Fixture();
 
             commonName = fixture.Create<string>();
             rsaCert = X509CertificateTestingUtils.GenerateX509Certificate2WithRsaKey(commonName);
-            ecdsaCert = X509CertificateTestingUtils.GenerateX509Certificate2WithEcdsaKey(commonName);
+            ecdsaCert = X509CertificateTestingUtils.GenerateX509Certificate2WithEcdsaKey(commonName); // no RSA private key
 
-            signReason = fixture.Create<string>();
             contact = fixture.Create<string>();
             location = fixture.Create<string>();
+            fileOutput = "output_" + location + ".pdf";
 
-            var fileToSign = "Data/sample.pdf";
             fileToSignBytes = File.ReadAllBytes(fileToSign);
+            pdfSigner = new PdfSigner(fileOutput);
         }
 
-        [Fact]
-        public async Task Should_not_sign_pdf_when_given_empty_output_file_path()
+        [Theory]
+        [InlineData("")]
+        [InlineData(null)]
+        public async Task Should_not_sign_pdf_when_given_empty_output_file_path(string output)
         {
-            // Arrange
-            var visible = false;
-            IFormFile? stamp = null;
-            var pdfSigner = new PdfSigner(string.Empty, null);
+            INamedImage? stamp = null;
+            var pdfSigner = new PdfSigner(output);
 
-            // Act
             var result = await pdfSigner.Sign(signReason, contact, location, visible, stamp, rsaCert, fileToSignBytes);
 
-            // Assert
             result.Should().BeFalse();
         }
 
-        [Fact]
-        public async Task Should_sign_pdf_when_given_valid_output_file_path()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task Should_sign_pdf_when_given_valid_output_file_path(bool shouldbevisible)
         {
-            // Arrange
-            var visible = true;
-            IFormFile? stamp = null;
-            var pdfSigner = new PdfSigner("output.pdf", null);
-
-            // Act
-            var result = await pdfSigner.Sign(signReason, contact, location, visible, stamp, rsaCert, fileToSignBytes);
-
-            // Assert
+            var result = await pdfSigner.Sign(signReason, contact, location, shouldbevisible, null, rsaCert, fileToSignBytes);
             result.Should().BeTrue();
+            ValidateIfDocumentIsSigned();
         }
 
         [Fact]
         public async Task Should_not_sign_pdf_when_given_null_output_stream()
         {
-            // Arrange
-            var visible = false;
-            IFormFile? stamp = null;
-
             Stream? fs = null;
-            var pdfSigner = new PdfSigner(fs, null);
+            var pdfSigner = new PdfSigner(fs);
 
-            // Act
-            var result = await pdfSigner.Sign(signReason, contact, location, visible, stamp, rsaCert, fileToSignBytes);
-
-            // Assert
+            var result = await pdfSigner.Sign(signReason, contact, location, visible, null, rsaCert, fileToSignBytes);
             result.Should().BeFalse();
         }
 
-
-        [Fact]
-        public async Task Should_sign_pdf_when_given_valid_output_stream()
+        private void ValidateIfDocumentIsSigned()
         {
-            // Arrange
-            var stampFileMock = new Mock<IFormFile>();
-            var visible = false;
+            using PdfReader reader = new(fileOutput);
+            using PdfDocument document = new PdfDocument(reader);
+            SignatureUtil signatureUtil = new SignatureUtil(document);
+            var signature = signatureUtil.GetSignature(signatureUtil.GetSignatureNames()[0]);
+
+            var dateStr = signature.GetDate().ToString();
+            dateStr.Should().NotBeEmpty();
+            DateTime signedDateTime = DDateTimeParser.ToDateTimeFromDString(dateStr);
+            signedDateTime.Should().BeCloseTo(DateTime.Now, TimeSpan.FromSeconds(10));
 
 
-            var fileToSign = "Data/sample.pdf";
-            byte[] fileToSignBytes = await File.ReadAllBytesAsync(fileToSign);
+            signature.GetReason().Should().BeEquivalentTo(signReason);
+            signature.GetLocation().Should().BeEquivalentTo(location);
+            signature.GetContents().ToString().Should().NotBeEmpty();
 
-            await using FileStream fs = new FileStream("output.pdf", FileMode.OpenOrCreate, FileAccess.Write);
-            var pdfSigner = new PdfSigner(fs, null);
+            var name = signature.GetName();
+            var cert = signature.GetCert();
+            signature.GetSubFilter().GetValue().ToString().Should().Contain("adbe.pkcs7.detached");
 
-            // Act
-            var result = await pdfSigner.Sign(signReason, contact, location, visible, stampFileMock.Object, rsaCert, fileToSignBytes);
+            var pdfObject = signature.GetPdfObject();
+            pdfObject.ToString().Should().Contain(contact);
+        }
 
-            // Assert
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task Should_sign_pdf_when_given_valid_output_stream(bool visible)
+        {
+            using var m = new MemoryStream();
+            using StreamReader streamRead = new StreamReader("Data/valid.jpg");
+            streamRead.BaseStream.CopyTo(m);
+
+            var namedImage = new NamedImage { Name = "valid.jpg", Data = m.ToArray() };
+
+            await using FileStream fs = new FileStream(fileOutput, FileMode.OpenOrCreate, FileAccess.Write);
+            var pdfSigner = new PdfSigner(fileOutput);
+
+            string field = rsaCert.GetNameInfo(X509NameType.SimpleName, false);
+            var imageText = "Operat podpisany cyfrowo \n" + $"przez {field} \n";
+
+            var result = await pdfSigner.Sign(signReason, contact, location, visible, namedImage, rsaCert, fileToSignBytes, imageText: imageText);
+
             result.Should().BeTrue();
+            ValidateIfDocumentIsSigned();
+
         }
 
 
         [Fact]
         public void Should_create_external_signature()
         {
-            // Arrange
-            PdfSigner pdfSigner = new("output.pdf", null);
-            MethodInfo? methodInfo = typeof(PdfSigner).GetMethod("CreateExternalSignature", BindingFlags.NonPublic | BindingFlags.Instance);
-            object[] parameters = { rsaCert };
-
-            // Act
-            var result = methodInfo?.Invoke(pdfSigner, parameters);
-
-            // Assert
+            var result = pdfSigner.CreateExternalSignature(rsaCert);
             result.Should().NotBeNull();
-            if (result != null)
-            {
-                var resultObj = (IExternalSignature)result;
-                resultObj.GetEncryptionAlgorithm().Should().NotBeNull();
-                resultObj.GetHashAlgorithm().Should().NotBeNull();
-            }
+            result.GetEncryptionAlgorithm().Should().Be("RSA");
+            result.GetHashAlgorithm().Should().Be("SHA256");
         }
+
 
         [Fact]
         public void Should_not_create_external_signature_when_there_is_no_rsa_private_key_in_certificate()
         {
-            // Arrange
-            PdfSigner pdfSigner = new("output.pdf", null);
-            MethodInfo? methodInfo = typeof(PdfSigner).GetMethod("CreateExternalSignature", BindingFlags.NonPublic | BindingFlags.Instance);
-            object[] parameters = { ecdsaCert };
-
-            // Act - Assert
-            var result = Assert.Throws<TargetInvocationException>(() => methodInfo?.Invoke(pdfSigner, parameters));
-            result.InnerException.Should().NotBeNull();
-            result.InnerException.Should().BeOfType<CryptographicException>();
+            Assert.Throws<CryptographicException>(() => pdfSigner.CreateExternalSignature(ecdsaCert));
         }
 
-        [Theory]
-        [InlineData(600, 800, 150, 150, 5, 445, 645)]
-        [InlineData(100, 100, 150, 150, 5, 0, 0)]
-        public void Should_calculate_signature_location(float pageWidth, float pageHeight, int imageWidth, int imageHeight, int signatureMargin, float expectedX, float expectedY)
+
+        public void Dispose()
         {
-            // Arrange
-            PdfSigner pdfSigner = new("output.pdf", null);
-            pdfSigner.ImageSize = new Size(imageWidth, imageHeight);
-            pdfSigner.SignatureMargin = signatureMargin;
-            MethodInfo? methodInfo = typeof(PdfSigner).GetMethod("CalculateSignatureLocation", BindingFlags.NonPublic | BindingFlags.Instance);
-            Rectangle pageSize = new Rectangle(pageWidth, pageHeight);
-            object[] parameters = { pageSize, null, null };
-            float precision = 0.001F;
-
-            // Act
-            methodInfo?.Invoke(pdfSigner, parameters);
-            var signatureLocationX = (float)parameters[1];
-            var signatureLocationY = (float)parameters[2];
-
-            // Assert
-            signatureLocationX.Should().BeApproximately(expectedX, precision);
-            signatureLocationY.Should().BeApproximately(expectedY, precision);
-        }
-
-        [Theory]
-        [InlineData(100, 100, 150, 150)]
-        [InlineData(121, 145, 150, 150)]
-        [InlineData(300, 300, 100, 100)]
-        [InlineData(316, 212, 100, 100)]
-        public void Should_resize_image(int width, int height, int widthAfter, int heightAfter)
-        {
-            // Arrange
-            byte[] imageBytes = ImageTestingUtils.GenerateSingleColorRectangle(width, height, "#FF0000", 75);
-            PdfSigner pdfSigner = new("output.pdf", null);
-            pdfSigner.ImageSize = new Size(widthAfter, heightAfter);
-            MethodInfo? methodInfo = typeof(PdfSigner).GetMethod("ResizeImage", BindingFlags.NonPublic | BindingFlags.Instance);
-            using var stampBitmap = SKBitmap.Decode(imageBytes);
-            object[] parameters = { stampBitmap };
-
-            // Act
-            using SKBitmap? resizedBitmap = methodInfo?.Invoke(pdfSigner, parameters) as SKBitmap;
-
-            // Assert
-            resizedBitmap.Should().NotBeNull();
-            resizedBitmap.Width.Should().Be(widthAfter);
-            resizedBitmap.Height.Should().Be(heightAfter);
+            if (File.Exists(fileOutput))
+            {
+                File.Delete(fileOutput);
+            }
         }
     }
 }

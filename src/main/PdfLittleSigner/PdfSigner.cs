@@ -1,56 +1,44 @@
-﻿using System;
-using System.Drawing;
-using System.IO;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
-using System.Threading.Tasks;
-using iText.IO.Font;
-using iText.IO.Font.Constants;
-using iText.IO.Image;
-using iText.Kernel.Font;
-using iText.Kernel.Pdf;
+﻿using iText.Kernel.Pdf;
 using iText.Signatures;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Math;
-using Rectangle = iText.Kernel.Geom.Rectangle;
-using SkiaSharp;
+using System;
 using System.Globalization;
+using System.IO;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
+using Rectangle = iText.Kernel.Geom.Rectangle;
 
 namespace PdfLittleSigner
 {
 
-    public class PdfSigner : IPdfSigner
+
+    public class PdfSigner : IPdfSigner, IDisposable
     {
         #region Properties
 
-        private readonly string _outputPdfFileString = "";
+        private readonly string _outputPdfFileString;
         private Stream _outputPdfStream;
         private readonly ILogger<PdfSigner> _logger;
-        public Size ImageSize { get; set; } = new(150, 150);
-        public int SignatureMargin { get; set; } = 5;
-        public SKFilterQuality ImageResizeQuality { get; set; } = SKFilterQuality.High;
-        public int JpegEncodingImageQuality = 75;
-        public string HashAlgorithm { get; set; } = DigestAlgorithms.SHA256;
-        public PdfFont Font { get; set; } = PdfFontFactory.CreateFont(StandardFonts.HELVETICA, PdfEncodings.CP1250);
-        public float FontSize { get; set; } = 12;
-        public CultureInfo SignDateCultureInfo { get; set; } = new CultureInfo("pl-PL");
-        public string SignDateFormat { get; set; } = "dd.MM.yyyy HH:mm:ss";
-        public TimeZoneInfo SignDateTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time");
+
+        public const string SignDateFormat = "dd.MM.yyyy HH:mm:ss";
+
+
 
         #endregion
 
         #region Constructors
 
-        public PdfSigner(string output, ILogger<PdfSigner> logger)
+        public PdfSigner(string output, ILogger<PdfSigner> logger = null)
         {
             _outputPdfFileString = output;
             _logger = logger ?? new NullLogger<PdfSigner>();
         }
 
-        public PdfSigner(Stream output, ILogger<PdfSigner> logger)
+        public PdfSigner(Stream output, ILogger<PdfSigner> logger = null)
         {
             _outputPdfStream = output;
             _logger = logger ?? new NullLogger<PdfSigner>();
@@ -63,10 +51,15 @@ namespace PdfLittleSigner
             string iSignContact,
             string iSignLocation,
             bool visible,
-            IFormFile stampFile,
+            INamedImage stampFile,
             X509Certificate2 certificate,
-            byte[] fileToSign)
+            byte[] fileToSign,
+            string signatureCreator = "",
+            string imageText = "",
+            bool addSignDateToImageText = true)
         {
+
+            imageText = imageText ?? "";
 
             var chain = certificate != null ?
                 GetChain(certificate)
@@ -83,7 +76,6 @@ namespace PdfLittleSigner
                 return false;
             }
 
-            _logger.Log(LogLevel.Information, "Reading pdf file...");
             await using Stream inputPdfSigner = new MemoryStream(fileToSign);
             using PdfReader singerPdfReader = new(inputPdfSigner);
 
@@ -91,24 +83,35 @@ namespace PdfLittleSigner
             {
                 var pdfSigner = GetPdfSigner(singerPdfReader);
 
-                _logger.Log(LogLevel.Information, "Setting signature appearance...");
+
                 await using Stream inputPdfDocument = new MemoryStream(fileToSign);
                 using PdfReader documentPdfReader = new PdfReader(inputPdfDocument);
                 using PdfDocument pdfDocument = new PdfDocument(documentPdfReader);
                 var pageSize = pdfDocument.GetFirstPage().GetPageSize();
-                await ConfigureSignatureAppearance(pageSize, iSignReason, iSignContact, iSignLocation, visible, stampFile,
-                    certificate, pdfSigner);
 
-                _logger.Log(LogLevel.Information, "Loading private key and signature data...");
+                //string field = certificate.GetNameInfo(X509NameType.SimpleName, false);
+                //var imageText = "Podpisany cyfrowo \n" + $"przez {field} \n";
+
+
+                if (addSignDateToImageText)
+                {
+                    imageText += pdfSigner.GetSignDate().ToString(SignDateFormat, CultureInfo.CurrentCulture);
+                }
+
+
+                await ConfigureSignatureAppearance(pageSize, iSignReason, iSignContact, iSignLocation, visible, stampFile,
+                    certificate, pdfSigner, signatureCreator, imageText);
                 var signature = CreateExternalSignature(certificate);
 
                 _logger.Log(LogLevel.Information, "Signing pdf...");
                 pdfSigner.SignDetached(signature, chain, null, null, null, 0, iText.Signatures.PdfSigner.CryptoStandard.CMS);
             }
-            catch (IOException)
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Error on Sign");
                 return false;
             }
+
             finally
             {
                 await _outputPdfStream.DisposeAsync();
@@ -118,9 +121,10 @@ namespace PdfLittleSigner
             return true;
         }
 
-        #region Private methods
-        private IExternalSignature CreateExternalSignature(X509Certificate2 certificate)
+        public IExternalSignature CreateExternalSignature(X509Certificate2 certificate)
         {
+            _logger.Log(LogLevel.Information, "Loading private key and signature data...");
+
             var rsa = certificate.GetRSAPrivateKey();
             if (rsa == null)
             {
@@ -146,103 +150,40 @@ namespace PdfLittleSigner
                 dq,
                 inverseQ);
 
-            IExternalSignature signature = new PrivateKeySignature(privateKey, HashAlgorithm);
+            IExternalSignature signature = new PrivateKeySignature(privateKey, DigestAlgorithms.SHA256);
             return signature;
         }
 
-        private async Task ConfigureSignatureAppearance(Rectangle pageSize, string iSignReason, string iSignContact, string iSignLocation,
-            bool visible, IFormFile stampFile, X509Certificate2 certificate, iText.Signatures.PdfSigner pdfSigner)
+        public async Task ConfigureSignatureAppearance(Rectangle pageSize, string iSignReason, string iSignContact, string iSignLocation,
+            bool visible, INamedImage stampFile, X509Certificate2 certificate, iText.Signatures.PdfSigner pdfSigner, string signatureCreator,
+            string layer2Text)
         {
+            _logger.Log(LogLevel.Information, "Setting signature appearance...");
+
             var signatureAppearance = pdfSigner.GetSignatureAppearance();
             signatureAppearance
                 .SetReason(iSignReason)
                 .SetContact(iSignContact)
-                .SetLocation(iSignLocation);
+                .SetLocation(iSignLocation)
+                ;
+
+            if (!string.IsNullOrEmpty(signatureCreator))
+            {
+                signatureAppearance.SetSignatureCreator(signatureCreator);
+            }
 
             if (visible)
             {
-                float signatureLocationX, signatureLocationY;
-                CalculateSignatureLocation(pageSize, out signatureLocationX, out signatureLocationY);
-                signatureAppearance.SetPageRect(new Rectangle(signatureLocationX, signatureLocationY, ImageSize.Width, ImageSize.Height));
-
-                if (stampFile != null)
-                {
-                    signatureAppearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.GRAPHIC);
-
-                    var stampBytes = await FormFileToByteArrayAsync(stampFile);
-                    using var stampBitmap = SKBitmap.Decode(stampBytes);
-                    using SKBitmap resizedStampBitmap = ResizeImage(stampBitmap);
-
-                    var stampImageExtension = Path.GetExtension(stampFile.FileName);
-                    byte[] resizedStampBytes;
-                    if (stampImageExtension.ToLower().Equals(".png"))
-                    {
-                        using var adjustedStampBitmap = RemoveTransparentBackgorund(resizedStampBitmap);
-                        resizedStampBytes = SKBitmapToByteArray(adjustedStampBitmap);
-                    }
-                    else
-                    {
-                        resizedStampBytes = SKBitmapToByteArray(resizedStampBitmap);
-                    }
-
-                    ImageData imageData = ImageDataFactory.Create(resizedStampBytes);
-                    signatureAppearance.SetSignatureGraphic(imageData);
-                    signatureAppearance.SetLayer2Text(" ");
-                }
-                else
-                {
-                    signatureAppearance.SetRenderingMode(PdfSignatureAppearance.RenderingMode.DESCRIPTION);
-                    signatureAppearance.SetLayer2Font(Font);
-                    signatureAppearance.SetLayer2FontSize(FontSize);
-
-                    string field = certificate.GetNameInfo(X509NameType.SimpleName, false);
-                    var layer2Text = "Operat podpisany cyfrowo \n" +
-                                     $"przez {field} \n" +
-                                     pdfSigner.GetSignDate().ToString(SignDateFormat, SignDateCultureInfo);
-                    signatureAppearance.SetLayer2Text(layer2Text);
-                }
+                SignatureImage signatureImage = new SignatureImage();
+                signatureImage.SetImage(pageSize, signatureAppearance, stampFile, layer2Text);
             }
         }
 
-        private byte[] SKBitmapToByteArray(SKBitmap bitmap)
-        {
-            using var image = SKImage.FromBitmap(bitmap);
-            using var data = image.Encode(SKEncodedImageFormat.Jpeg, JpegEncodingImageQuality);
-
-            return data.ToArray();
-        }
-
-        private SKBitmap RemoveTransparentBackgorund(SKBitmap bitmap)
-        {
-            using SKBitmap adjustedBitmap = new(bitmap.Width, bitmap.Height);
-            using (SKCanvas canvas = new(adjustedBitmap))
-            {
-                canvas.Clear(SKColors.White);
-                canvas.DrawBitmap(bitmap, 0, 0);
-            };
-
-            return adjustedBitmap.Copy();
-        }
-
-        private SKBitmap ResizeImage(SKBitmap stampBitmap)
-        {
-            return stampBitmap.Resize(new SKSizeI(ImageSize.Width, ImageSize.Height), ImageResizeQuality);
-        }
-
-        private void CalculateSignatureLocation(Rectangle pageSize, out float signatureLocationX, out float signatureLocationY)
-        {
-            var remainingWidth = pageSize.GetWidth() - ImageSize.Width - SignatureMargin;
-            var remainingHeight = pageSize.GetHeight() - ImageSize.Height - SignatureMargin;
-            signatureLocationX = remainingWidth >= 0 ? remainingWidth : 0;
-            signatureLocationY = remainingHeight >= 0 ? remainingHeight : 0;
-        }
-
-        private iText.Signatures.PdfSigner GetPdfSigner(PdfReader pdfReader)
+        public iText.Signatures.PdfSigner GetPdfSigner(PdfReader pdfReader)
         {
             StampingProperties stampingProperties = new();
             iText.Signatures.PdfSigner pdfSigner = new(pdfReader, _outputPdfStream, stampingProperties);
-            var signDate = TimeZoneInfo.ConvertTime(DateTime.UtcNow, SignDateTimeZone);
-            pdfSigner.SetSignDate(signDate);
+            pdfSigner.SetSignDate(DateTime.UtcNow);
             pdfSigner.SetCertificationLevel(iText.Signatures.PdfSigner.CERTIFIED_NO_CHANGES_ALLOWED);
 
             return pdfSigner;
@@ -258,14 +199,13 @@ namespace PdfLittleSigner
             return chain;
         }
 
-        private async Task<byte[]> FormFileToByteArrayAsync(IFormFile file)
+        public void Dispose()
         {
-            using var stream = new MemoryStream();
-            await file.CopyToAsync(stream);
-
-            return stream.ToArray();
+            if (_outputPdfStream != null)
+            {
+                _outputPdfStream.Dispose();
+                _outputPdfStream = null;
+            }
         }
-
-        #endregion
     }
 }
