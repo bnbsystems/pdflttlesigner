@@ -63,7 +63,7 @@ namespace PdfLittleSignerSpecification
         }
 
         [Fact]
-        public async void Should_RemoveTransparentBackgorund()
+        public void Should_RemoveTransparentBackgorund()
         {
             using var stampBitmap = SKBitmap.Decode("./Data/vx.png");
             var beforeRemove = stampBitmap.Pixels.Count(x => x == SKColors.White).Should().Be(0);
@@ -72,13 +72,10 @@ namespace PdfLittleSignerSpecification
 
             removedBackgraound.Width.Should().Be(stampBitmap.Width);
             removedBackgraound.Height.Should().Be(stampBitmap.Height);
-
-            //SKFileWStream fs = new("quickstart.png");
-            //removedBackgraound.Encode(fs, SKEncodedImageFormat.Png, quality: 85);
         }
 
         [Fact]
-        public async void should_SKBitmapToByteArray()
+        public void Should_map_to_byteArray()
         {
             using var stampBitmap = SKBitmap.Decode("./Data/valid.jpg");
             signatureImage.SKBitmapToByteArray(stampBitmap).Should().NotBeNullOrEmpty();

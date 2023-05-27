@@ -48,11 +48,17 @@ namespace PdfLittleSignerSpecification
         [InlineData(null)]
         public async Task Should_not_sign_pdf_when_given_empty_output_file_path(string output)
         {
-            INamedImage? stamp = null;
             var pdfSigner = new PdfSigner(output);
+            var result = await pdfSigner.Sign(signReason, contact, location, visible, null, rsaCert, fileToSignBytes);
+            result.Should().BeFalse();
+        }
 
-            var result = await pdfSigner.Sign(signReason, contact, location, visible, stamp, rsaCert, fileToSignBytes);
-
+        [Fact]
+        public async Task Should_not_sign_pdf_when_given_null_output_stream()
+        {
+            Stream? fs = null;
+            var pdfSigner = new PdfSigner(fs);
+            var result = await pdfSigner.Sign(signReason, contact, location, visible, null, rsaCert, fileToSignBytes);
             result.Should().BeFalse();
         }
 
@@ -66,15 +72,6 @@ namespace PdfLittleSignerSpecification
             ValidateIfDocumentIsSigned();
         }
 
-        [Fact]
-        public async Task Should_not_sign_pdf_when_given_null_output_stream()
-        {
-            Stream? fs = null;
-            var pdfSigner = new PdfSigner(fs);
-
-            var result = await pdfSigner.Sign(signReason, contact, location, visible, null, rsaCert, fileToSignBytes);
-            result.Should().BeFalse();
-        }
 
         private void ValidateIfDocumentIsSigned()
         {
@@ -87,7 +84,6 @@ namespace PdfLittleSignerSpecification
             dateStr.Should().NotBeEmpty();
             DateTime signedDateTime = DDateTimeParser.ToDateTimeFromDString(dateStr);
             signedDateTime.Should().BeCloseTo(DateTime.Now, TimeSpan.FromSeconds(10));
-
 
             signature.GetReason().Should().BeEquivalentTo(signReason);
             signature.GetLocation().Should().BeEquivalentTo(location);
@@ -113,7 +109,7 @@ namespace PdfLittleSignerSpecification
             var namedImage = new NamedImage { Name = "valid.jpg", Data = m.ToArray() };
 
             await using FileStream fs = new FileStream(fileOutput, FileMode.OpenOrCreate, FileAccess.Write);
-            var pdfSigner = new PdfSigner(fileOutput);
+            var pdfSigner = new PdfSigner(fs);
 
             string field = rsaCert.GetNameInfo(X509NameType.SimpleName, false);
             var imageText = "Operat podpisany cyfrowo \n" + $"przez {field} \n";

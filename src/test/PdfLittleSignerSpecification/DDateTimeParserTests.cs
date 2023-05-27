@@ -28,7 +28,7 @@ namespace PdfLittleSignerSpecification
         [InlineData("D:20230527211515+05'30'", "2023-05-27 21:15:15+05:30")]
         [InlineData("D:20010101010101+01'00'", "2001-01-01 01:01:01+01:00")]
         [InlineData("D:20991231235959+00'00'", "2099-12-31 23:59:59+00:00")]
-        public async Task It_should_return_correct_date(string dstr, string expectedDateInStdFormat)
+        public void It_should_return_correct_date(string dstr, string expectedDateInStdFormat)
         {
             DateTime expected = DateTime.Parse(expectedDateInStdFormat);
             var res = DDateTimeParser.ToDateTimeFromDString(dstr);
@@ -37,7 +37,7 @@ namespace PdfLittleSignerSpecification
 
 
         [Fact]
-        public async Task It_should_throw_argument_exception()
+        public void It_should_throw_argument_exception()
         {
             Action act = () => DDateTimeParser.ToDateTimeFromDString(null);
             act.Should().Throw<ArgumentException>();
@@ -56,7 +56,7 @@ namespace PdfLittleSignerSpecification
         [InlineData("D: 20230527014059")] // spaces 
         [InlineData("2023 05 27 01 40 59 +02'00'")] // spaces 
         [InlineData("D:20230527014059 +02'00'")] // spaces 
-        public async Task It_should_throw_format_exception(string dstr)
+        public void It_should_throw_format_exception(string dstr)
         {
             Action act = () => DDateTimeParser.ToDateTimeFromDString(dstr);
             act.Should().Throw<FormatException>();

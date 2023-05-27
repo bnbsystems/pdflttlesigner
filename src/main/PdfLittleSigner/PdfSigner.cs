@@ -14,23 +14,13 @@ using Rectangle = iText.Kernel.Geom.Rectangle;
 
 namespace PdfLittleSigner
 {
-
-
     public class PdfSigner : IPdfSigner, IDisposable
     {
-        #region Properties
-
         private readonly string _outputPdfFileString;
         private Stream _outputPdfStream;
         private readonly ILogger<PdfSigner> _logger;
 
         public const string SignDateFormat = "dd.MM.yyyy HH:mm:ss";
-
-
-
-        #endregion
-
-        #region Constructors
 
         public PdfSigner(string output, ILogger<PdfSigner> logger = null)
         {
@@ -43,8 +33,6 @@ namespace PdfLittleSigner
             _outputPdfStream = output;
             _logger = logger ?? new NullLogger<PdfSigner>();
         }
-
-        #endregion
 
         public async Task<bool> Sign(
             string iSignReason,
@@ -82,33 +70,26 @@ namespace PdfLittleSigner
             try
             {
                 var pdfSigner = GetPdfSigner(singerPdfReader);
-
-
                 await using Stream inputPdfDocument = new MemoryStream(fileToSign);
                 using PdfReader documentPdfReader = new PdfReader(inputPdfDocument);
                 using PdfDocument pdfDocument = new PdfDocument(documentPdfReader);
                 var pageSize = pdfDocument.GetFirstPage().GetPageSize();
-
-                //string field = certificate.GetNameInfo(X509NameType.SimpleName, false);
-                //var imageText = "Podpisany cyfrowo \n" + $"przez {field} \n";
-
 
                 if (addSignDateToImageText)
                 {
                     imageText += pdfSigner.GetSignDate().ToString(SignDateFormat, CultureInfo.CurrentCulture);
                 }
 
-
                 await ConfigureSignatureAppearance(pageSize, iSignReason, iSignContact, iSignLocation, visible, stampFile,
                     certificate, pdfSigner, signatureCreator, imageText);
                 var signature = CreateExternalSignature(certificate);
 
-                _logger.Log(LogLevel.Information, "Signing pdf...");
+                _logger.Log(LogLevel.Information, "Signing pdf by using detached mode,");
                 pdfSigner.SignDetached(signature, chain, null, null, null, 0, iText.Signatures.PdfSigner.CryptoStandard.CMS);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error on Sign");
+                _logger.LogError(ex, "Error in Sign method");
                 return false;
             }
 
@@ -116,8 +97,6 @@ namespace PdfLittleSigner
             {
                 await _outputPdfStream.DisposeAsync();
             }
-
-            _logger.Log(LogLevel.Information, "Signing pdf successful.");
             return true;
         }
 
