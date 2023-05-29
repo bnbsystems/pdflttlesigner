@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<package> 
-  <metadata> 
+<package>
+  <metadata>
     <id>PDFLittleSigner</id>
-    <version>2.0.4</version>
+    <version>3.0.0</version>
 
     <authors>BnB Systems</authors>
 
@@ -15,7 +15,7 @@
     <tags>pdf sign itextsharp</tags>
     <iconUrl>PdfLittleSignerSmall.png</iconUrl>
   </metadata>
-  
+
   <files>
   <file src="bin\Debug\*.dll" target="lib" />
   <file src="bin\Debug\*.pdb" target="lib" /> 

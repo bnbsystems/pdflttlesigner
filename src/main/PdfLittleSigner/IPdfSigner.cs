@@ -1,6 +1,5 @@
 ﻿using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
 
 namespace PdfLittleSigner
 {
@@ -11,8 +10,11 @@ namespace PdfLittleSigner
             string iSignContact,
             string iSignLocation,
             bool visible,
-            IFormFile stampFile,
+            INamedImage stampFile,
             X509Certificate2 certificate,
-            byte[] fileToSign);
+            byte[] fileToSign,
+            string signatureCreator = "",
+            string imageText = "",
+            bool addSignDateToImageText = true);
     }
 }
