@@ -80,7 +80,7 @@ namespace PdfLittleSigner
                     imageText += pdfSigner.GetSignDate().ToString(SignDateFormat, CultureInfo.CurrentCulture);
                 }
 
-                await ConfigureSignatureAppearance(pageSize, iSignReason, iSignContact, iSignLocation, visible, stampFile,
+                ConfigureSignatureAppearance(pageSize, iSignReason, iSignContact, iSignLocation, visible, stampFile,
                     certificate, pdfSigner, signatureCreator, imageText);
                 var signature = CreateExternalSignature(certificate);
 
@@ -133,7 +133,7 @@ namespace PdfLittleSigner
             return signature;
         }
 
-        public async Task ConfigureSignatureAppearance(Rectangle pageSize, string iSignReason, string iSignContact, string iSignLocation,
+        public void ConfigureSignatureAppearance(Rectangle pageSize, string iSignReason, string iSignContact, string iSignLocation,
             bool visible, INamedImage stampFile, X509Certificate2 certificate, iText.Signatures.PdfSigner pdfSigner, string signatureCreator,
             string layer2Text)
         {
