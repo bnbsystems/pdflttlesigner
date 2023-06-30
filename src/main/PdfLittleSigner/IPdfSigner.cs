@@ -15,6 +15,7 @@ namespace PdfLittleSigner
             byte[] fileToSign,
             string signatureCreator = "",
             string imageText = "",
-            bool addSignDateToImageText = true);
+            bool addSignDateToImageText = true,
+            int pageNumber = 1);
     }
 }

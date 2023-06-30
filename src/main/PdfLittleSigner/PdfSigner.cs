@@ -44,7 +44,8 @@ namespace PdfLittleSigner
             byte[] fileToSign,
             string signatureCreator = "",
             string imageText = "",
-            bool addSignDateToImageText = true)
+            bool addSignDateToImageText = true,
+            int pageNumber = 1)
         {
 
             imageText = imageText ?? "";
@@ -81,7 +82,7 @@ namespace PdfLittleSigner
                 }
 
                 ConfigureSignatureAppearance(pageSize, iSignReason, iSignContact, iSignLocation, visible, stampFile,
-                    certificate, pdfSigner, signatureCreator, imageText);
+                    certificate, pdfSigner, signatureCreator, imageText, pageNumber);
                 var signature = CreateExternalSignature(certificate);
 
                 _logger.Log(LogLevel.Information, "Signing pdf by using detached mode,");
@@ -135,7 +136,7 @@ namespace PdfLittleSigner
 
         public void ConfigureSignatureAppearance(Rectangle pageSize, string iSignReason, string iSignContact, string iSignLocation,
             bool visible, INamedImage stampFile, X509Certificate2 certificate, iText.Signatures.PdfSigner pdfSigner, string signatureCreator,
-            string layer2Text)
+            string layer2Text, int pageNumber)
         {
             _logger.Log(LogLevel.Information, "Setting signature appearance...");
 
@@ -144,6 +145,7 @@ namespace PdfLittleSigner
                 .SetReason(iSignReason)
                 .SetContact(iSignContact)
                 .SetLocation(iSignLocation)
+                .SetPageNumber(pageNumber)
                 ;
 
             if (!string.IsNullOrEmpty(signatureCreator))
