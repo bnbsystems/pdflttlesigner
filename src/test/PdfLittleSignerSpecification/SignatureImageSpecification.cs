@@ -18,9 +18,9 @@ namespace PdfLittleSignerSpecification
 
 
         [Theory]
-        [InlineData(600, 800, 150, 150, 5, 445, 645)]
-        [InlineData(600, 800, 150, 150, 0, 450, 650)]
-        [InlineData(600, 800, 120, 160, 200, 280, 440)]
+        [InlineData(600, 800, 150, 150, 5, 445, 5)]
+        [InlineData(600, 800, 150, 150, 0, 450, 0)]
+        [InlineData(600, 800, 120, 160, 200, 280, 200)]
         [InlineData(100, 100, 150, 150, 5, 0, 0)]
         [InlineData(100, 100, 150, 150, 0, 0, 0)]
         [InlineData(100, 100, 110, 110, 90, 0, 0)]
@@ -29,7 +29,8 @@ namespace PdfLittleSignerSpecification
             float precision = 0.001F;
 
             signatureImage.ImageSize = new Size(imageWidth, imageHeight);
-            signatureImage.SignatureMargin = signatureMargin;
+            signatureImage.SignatureMarginBottom = signatureMargin;
+            signatureImage.SignatureMarginRight = signatureMargin;
 
             Rectangle pageSize = new Rectangle(pageWidth, pageHeight);
 

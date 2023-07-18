@@ -18,7 +18,8 @@ namespace PdfLittleSigner
         public readonly PdfFont Font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA, PdfEncodings.CP1250);
         public readonly float FontSize = 12;
         public readonly int JpegEncodingImageQuality = 75;
-        public int SignatureMargin { get; set; } = 5;
+        public int SignatureMarginRight { get; set; } = 20;
+        public int SignatureMarginBottom { get; set; } = 150;
 
         public SKBitmap ResizeImage(SKBitmap stampBitmap)
         {
@@ -46,10 +47,10 @@ namespace PdfLittleSigner
 
         public void CalculateSignatureLocation(Rectangle pageSize, out float signatureLocationX, out float signatureLocationY)
         {
-            var remainingWidth = pageSize.GetWidth() - ImageSize.Width - SignatureMargin;
-            var remainingHeight = pageSize.GetHeight() - ImageSize.Height - SignatureMargin;
+            var remainingWidth = pageSize.GetWidth() - ImageSize.Width - SignatureMarginRight;
+            var remainingHeight = pageSize.GetHeight() - ImageSize.Height - SignatureMarginBottom;
             signatureLocationX = remainingWidth >= 0 ? remainingWidth : 0;
-            signatureLocationY = remainingHeight >= 0 ? remainingHeight : 0;
+            signatureLocationY = remainingHeight >= 0 ? SignatureMarginBottom : 0;
         }
 
         public void SetImage(Rectangle pageSize, PdfSignatureAppearance signatureAppearance, INamedImage stampFile, string layer2Text)
