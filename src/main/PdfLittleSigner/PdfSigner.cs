@@ -76,7 +76,7 @@ namespace PdfLittleSigner
                 var pageSize = pdfDocument.GetFirstPage().GetPageSize();
                 bool useAppendMode = IsDocumentSigned(pdfDocument);
                 var pdfSigner = GetPdfSigner(singerPdfReader, useAppendMode);
-                
+
                 if (addSignDateToImageText)
                 {
                     imageText += pdfSigner.GetSignDate().ToString(SignDateFormat, CultureInfo.CurrentCulture);

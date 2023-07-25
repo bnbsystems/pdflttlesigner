@@ -109,19 +109,7 @@ namespace PdfLittleSignerSpecification
         [InlineData(true)]
         public async Task Should_sign_document_which_was_already_signed_before(bool visible)
         {
-            using var m = new MemoryStream();
-            using StreamReader streamRead = new StreamReader("Data/valid.jpg");
-            streamRead.BaseStream.CopyTo(m);
-
-            var namedImage = new NamedImage { Name = "valid.jpg", Data = m.ToArray() };
-
-            await using FileStream fs = new FileStream(fileOutput, FileMode.OpenOrCreate, FileAccess.Write);
-            var pdfSigner = new PdfSigner(fs);
-
-            string field = rsaCert.GetNameInfo(X509NameType.SimpleName, false);
-            var imageText = "Operat podpisany cyfrowo \n" + $"przez {field} \n";
-
-            var result = await pdfSigner.Sign(signReason, contact, location, visible, namedImage, rsaCert, alreadySignedFileBytes, imageText: imageText, pageNumber: 2);
+            var result = await SignWithDefaultTestConfiguration(visible, alreadySignedFileBytes);
 
             result.Should().BeTrue();
             ValidateIfDocumentIsSigned(2);
@@ -131,6 +119,14 @@ namespace PdfLittleSignerSpecification
         [InlineData(false)]
         [InlineData(true)]
         public async Task Should_sign_pdf_when_given_valid_output_stream(bool visible)
+        {
+            var result = await SignWithDefaultTestConfiguration(visible, fileToSignBytes);
+
+            result.Should().BeTrue();
+            ValidateIfDocumentIsSigned(1);
+        }
+
+        private async Task<bool> SignWithDefaultTestConfiguration(bool visible, byte[] fileBytes)
         {
             using var m = new MemoryStream();
             using StreamReader streamRead = new StreamReader("Data/valid.jpg");
@@ -144,12 +140,8 @@ namespace PdfLittleSignerSpecification
             string field = rsaCert.GetNameInfo(X509NameType.SimpleName, false);
             var imageText = "Operat podpisany cyfrowo \n" + $"przez {field} \n";
 
-            var result = await pdfSigner.Sign(signReason, contact, location, visible, namedImage, rsaCert, fileToSignBytes, imageText: imageText);
-
-            result.Should().BeTrue();
-            ValidateIfDocumentIsSigned(1);
+            return await pdfSigner.Sign(signReason, contact, location, visible, namedImage, rsaCert, fileBytes, imageText: imageText);
         }
-
 
         [Fact]
         public void Should_create_external_signature()
