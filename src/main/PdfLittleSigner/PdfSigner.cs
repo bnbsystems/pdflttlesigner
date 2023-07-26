@@ -70,11 +70,12 @@ namespace PdfLittleSigner
 
             try
             {
-                var pdfSigner = GetPdfSigner(singerPdfReader);
                 await using Stream inputPdfDocument = new MemoryStream(fileToSign);
                 using PdfReader documentPdfReader = new PdfReader(inputPdfDocument);
                 using PdfDocument pdfDocument = new PdfDocument(documentPdfReader);
                 var pageSize = pdfDocument.GetFirstPage().GetPageSize();
+                bool useAppendMode = IsDocumentSigned(pdfDocument);
+                var pdfSigner = GetPdfSigner(singerPdfReader, useAppendMode);
 
                 if (addSignDateToImageText)
                 {
@@ -160,12 +161,18 @@ namespace PdfLittleSigner
             }
         }
 
-        public iText.Signatures.PdfSigner GetPdfSigner(PdfReader pdfReader)
+        public iText.Signatures.PdfSigner GetPdfSigner(PdfReader pdfReader, bool useAppendMode)
         {
             StampingProperties stampingProperties = new();
+            if (useAppendMode)
+            {
+                stampingProperties.UseAppendMode();
+            }
             iText.Signatures.PdfSigner pdfSigner = new(pdfReader, _outputPdfStream, stampingProperties);
             pdfSigner.SetSignDate(DateTime.UtcNow);
-            pdfSigner.SetCertificationLevel(iText.Signatures.PdfSigner.CERTIFIED_NO_CHANGES_ALLOWED);
+            pdfSigner.SetCertificationLevel(useAppendMode
+                ? iText.Signatures.PdfSigner.NOT_CERTIFIED
+                : iText.Signatures.PdfSigner.CERTIFIED_FORM_FILLING);
 
             return pdfSigner;
         }
@@ -178,6 +185,14 @@ namespace PdfLittleSigner
             Org.BouncyCastle.X509.X509Certificate[] chain = { certificates };
 
             return chain;
+        }
+
+        private bool IsDocumentSigned(PdfDocument document)
+        {
+            SignatureUtil signatureUtil = new SignatureUtil(document);
+            var signatureNames = signatureUtil.GetSignatureNames();
+
+            return signatureNames.Count > 0;
         }
 
         public void Dispose()

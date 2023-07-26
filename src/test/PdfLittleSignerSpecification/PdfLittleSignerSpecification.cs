@@ -5,6 +5,7 @@ using iText.Signatures;
 using PdfLittleSigner;
 using System;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
@@ -23,6 +24,8 @@ namespace PdfLittleSignerSpecification
         readonly string location;
         readonly byte[] fileToSignBytes;
         const string fileToSign = "Data/sample.pdf";
+        readonly byte[] alreadySignedFileBytes;
+        const string alreadySignedFile = "Data/signed_sample.pdf";
         readonly string fileOutput;
         readonly bool visible = false;
 
@@ -40,6 +43,7 @@ namespace PdfLittleSignerSpecification
             fileOutput = "output_" + location + ".pdf";
 
             fileToSignBytes = File.ReadAllBytes(fileToSign);
+            alreadySignedFileBytes = File.ReadAllBytes(alreadySignedFile);
             pdfSigner = new PdfSigner(fileOutput);
         }
 
@@ -69,16 +73,19 @@ namespace PdfLittleSignerSpecification
         {
             var result = await pdfSigner.Sign(signReason, contact, location, shouldbevisible, null, rsaCert, fileToSignBytes);
             result.Should().BeTrue();
-            ValidateIfDocumentIsSigned();
+            ValidateIfDocumentIsSigned(1);
         }
 
 
-        private void ValidateIfDocumentIsSigned()
+        private void ValidateIfDocumentIsSigned(int expectedSignatureCount)
         {
             using PdfReader reader = new(fileOutput);
             using PdfDocument document = new PdfDocument(reader);
             SignatureUtil signatureUtil = new SignatureUtil(document);
-            var signature = signatureUtil.GetSignature(signatureUtil.GetSignatureNames()[0]);
+            var signatureNames = signatureUtil.GetSignatureNames();
+            signatureNames.Count.Should().Be(expectedSignatureCount);
+            var signatureName = signatureNames.Last();
+            var signature = signatureUtil.GetSignature(signatureName);
 
             var dateStr = signature.GetDate().ToString();
             dateStr.Should().NotBeEmpty();
@@ -100,7 +107,26 @@ namespace PdfLittleSignerSpecification
         [Theory]
         [InlineData(false)]
         [InlineData(true)]
+        public async Task Should_sign_document_which_was_already_signed_before(bool visible)
+        {
+            var result = await SignWithDefaultTestConfiguration(visible, alreadySignedFileBytes);
+
+            result.Should().BeTrue();
+            ValidateIfDocumentIsSigned(2);
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
         public async Task Should_sign_pdf_when_given_valid_output_stream(bool visible)
+        {
+            var result = await SignWithDefaultTestConfiguration(visible, fileToSignBytes);
+
+            result.Should().BeTrue();
+            ValidateIfDocumentIsSigned(1);
+        }
+
+        private async Task<bool> SignWithDefaultTestConfiguration(bool visible, byte[] fileBytes)
         {
             using var m = new MemoryStream();
             using StreamReader streamRead = new StreamReader("Data/valid.jpg");
@@ -114,13 +140,8 @@ namespace PdfLittleSignerSpecification
             string field = rsaCert.GetNameInfo(X509NameType.SimpleName, false);
             var imageText = "Operat podpisany cyfrowo \n" + $"przez {field} \n";
 
-            var result = await pdfSigner.Sign(signReason, contact, location, visible, namedImage, rsaCert, fileToSignBytes, imageText: imageText);
-
-            result.Should().BeTrue();
-            ValidateIfDocumentIsSigned();
-
+            return await pdfSigner.Sign(signReason, contact, location, visible, namedImage, rsaCert, fileBytes, imageText: imageText);
         }
-
 
         [Fact]
         public void Should_create_external_signature()
